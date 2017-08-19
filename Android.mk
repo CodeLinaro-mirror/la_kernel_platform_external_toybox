@@ -228,11 +228,7 @@ toybox_upstream_version := $(shell sed 's/#define.*TOYBOX_VERSION.*"\(.*\)"/\1/p
 
 toybox_version := $(toybox_upstream_version)-android
 
-toybox_common_libraries := liblog libcutils libcrypto libz
-
-toybox_libraries := $(toybox_common_libraries) libselinux
-
-toybox_vendor_libraries := $(toybox_common_libraries) libselinux_vendor
+toybox_libraries := liblog libselinux libcutils libcrypto libz
 
 common_CFLAGS += -DTOYBOX_VERSION=\"$(toybox_version)\"
 
@@ -418,7 +414,8 @@ LOCAL_MODULE := toybox_vendor
 LOCAL_VENDOR_MODULE := true
 LOCAL_SRC_FILES := $(common_SRC_FILES)
 LOCAL_CFLAGS := $(common_CFLAGS)
-LOCAL_SHARED_LIBRARIES := $(toybox_vendor_libraries)
+LOCAL_STATIC_LIBRARIES := libcutils libcrypto libz
+LOCAL_SHARED_LIBRARIES := libselinux_vendor liblog
 LOCAL_MODULE_TAGS := optional
 LOCAL_POST_INSTALL_CMD := $(hide) $(foreach t,$(ALL_TOOLS),ln -sf ${LOCAL_MODULE} $(TARGET_OUT_VENDOR_EXECUTABLES)/$(t);)
 include $(BUILD_EXECUTABLE)
