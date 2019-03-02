@@ -11,7 +11,7 @@
  * Yes, I wimped out and capped -s at sizeof(toybuf), waiting for a complaint...
 
 // -s > 4088 = sizeof(toybuf)-sizeof(struct icmphdr), then kernel adds 20 bytes
-USE_PING(NEWTOY(ping, "<1>1m#t#<0>255=64c#<0=3s#<0>4088=56I:i%W#<0=3w#<0qf46[-46]", TOYFLAG_USR|TOYFLAG_BIN))
+USE_PING(NEWTOY(ping, "<1>1m#t#<0>255=64c#<0=3s#<0>4088=56i%W#<0=3w#<0qf46I:[-46]", TOYFLAG_USR|TOYFLAG_BIN))
 USE_PING(OLDTOY(ping6, ping, TOYFLAG_USR|TOYFLAG_BIN))
  
 config PING
@@ -47,23 +47,13 @@ config PING
 #include <netinet/ip_icmp.h>
 
 GLOBALS(
-  long w, W, i;
   char *I;
-  long s, c, t, m;
+  long w, W, i, s, c, t, m;
 
   struct sockaddr *sa;
   int sock;
   unsigned long sent, recv, fugit, min, max;
 )
-
-static void xsendto(int sockfd, void *buf, size_t len, struct sockaddr *dest)
-{
-  int rc = sendto(TT.sock, buf, len, 0, dest,
-    dest->sa_family == AF_INET ? sizeof(struct sockaddr_in) :
-      sizeof(struct sockaddr_in6));
-
-  if (rc != len) perror_exit("sendto");
-}
 
 static void summary(int sig)
 {

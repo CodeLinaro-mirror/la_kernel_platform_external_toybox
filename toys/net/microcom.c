@@ -2,7 +2,7 @@
  *
  * Copyright 2017 The Android Open Source Project.
 
-USE_MICROCOM(NEWTOY(microcom, "<1>1s:X", TOYFLAG_BIN))
+USE_MICROCOM(NEWTOY(microcom, "<1>1s:X", TOYFLAG_USR|TOYFLAG_BIN))
 
 config MICROCOM
   bool "microcom"
@@ -13,7 +13,7 @@ config MICROCOM
     Simple serial console.
 
     -s	Set baud rate to SPEED
-    -X	Ignore ^@ (send break) and ^] (exit).
+    -X	Ignore ^@ (send break) and ^] (exit)
 */
 
 #define FOR_microcom

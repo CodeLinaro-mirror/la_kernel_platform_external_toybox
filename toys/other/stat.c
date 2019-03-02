@@ -2,7 +2,7 @@
  * Copyright 2012 <warior.linux@gmail.com>
  * Copyright 2013 <anand.sinha85@gmail.com>
 
-USE_STAT(NEWTOY(stat, "<1c:fLt", TOYFLAG_BIN)) 
+USE_STAT(NEWTOY(stat, "<1c:(format)fLt", TOYFLAG_BIN))
 
 config STAT
   bool stat
@@ -13,7 +13,7 @@ config STAT
     Display status of files or filesystems.
 
     -c	Output specified FORMAT string instead of default
-    -f	display filesystem status instead of file status
+    -f	Display filesystem status instead of file status
     -L	Follow symlinks
     -t	terse (-c "%n %s %b %f %u %g %D %i %h %t %T %X %Y %Z %o")
     	      (with -f = -c "%n %i %l %t %s %S %b %f %a %c %d")

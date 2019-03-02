@@ -114,8 +114,8 @@ void show_help(FILE *out);
 // xwrap.c
 void xstrncpy(char *dest, char *src, size_t size);
 void xstrncat(char *dest, char *src, size_t size);
-void _xexit(void) noreturn;
-void xexit(void) noreturn;
+void _xexit(void) __attribute__((__noreturn__));
+void xexit(void) __attribute__((__noreturn__));
 void *xmmap(void *addr, size_t length, int prot, int flags, int fd, off_t off);
 void *xmalloc(size_t size);
 void *xzalloc(size_t size);
@@ -125,6 +125,8 @@ char *xstrdup(char *s);
 void *xmemdup(void *s, long len);
 char *xmprintf(char *format, ...) printf_format;
 void xprintf(char *format, ...) printf_format;
+void xputsl(char *s, int len);
+void xputsn(char *s);
 void xputs(char *s);
 void xputc(char c);
 void xflush(void);
@@ -138,6 +140,7 @@ int xrun(char **argv);
 int xpspawn(char **argv, int*pipes);
 void xaccess(char *path, int flags);
 void xunlink(char *path);
+void xrename(char *from, char *to);
 int xtempfile(char *name, char **tempname);
 int xcreate(char *path, int flags, int mode);
 int xopen(char *path, int flags);
@@ -183,9 +186,9 @@ void xsignal(int signal, void *handler);
 void verror_msg(char *msg, int err, va_list va);
 void error_msg(char *msg, ...) printf_format;
 void perror_msg(char *msg, ...) printf_format;
-void error_exit(char *msg, ...) printf_format noreturn;
-void perror_exit(char *msg, ...) printf_format noreturn;
-void help_exit(char *msg, ...) printf_format noreturn;
+void error_exit(char *msg, ...) printf_format __attribute__((__noreturn__));
+void perror_exit(char *msg, ...) printf_format __attribute__((__noreturn__));
+void help_exit(char *msg, ...) printf_format __attribute__((__noreturn__));
 void error_msg_raw(char *msg);
 void perror_msg_raw(char *msg);
 void error_exit_raw(char *msg);
@@ -206,7 +209,9 @@ int highest_bit(unsigned long l);
 int64_t peek_le(void *ptr, unsigned size);
 int64_t peek_be(void *ptr, unsigned size);
 int64_t peek(void *ptr, unsigned size);
-void poke(void *ptr, uint64_t val, int size);
+void poke_le(void *ptr, long long val, unsigned size);
+void poke_be(void *ptr, long long val, unsigned size);
+void poke(void *ptr, long long val, unsigned size);
 struct string_list *find_in_path(char *path, char *filename);
 long long estrtol(char *str, char **end, int base);
 long long xstrtol(char *str, char **end, int base);
@@ -237,7 +242,6 @@ int qstrcmp(const void *a, const void *b);
 void create_uuid(char *uuid);
 char *show_uuid(char *uuid);
 char *next_printf(char *s, char **start);
-char *strnstr(char *line, char *str);
 int dev_minor(int dev);
 int dev_major(int dev);
 int dev_makedev(int major, int minor);
@@ -249,7 +253,7 @@ int regexec0(regex_t *preg, char *string, long len, int nmatch,
   regmatch_t pmatch[], int eflags);
 char *getusername(uid_t uid);
 char *getgroupname(gid_t gid);
-void do_lines(int fd, void (*call)(char **pline, long len));
+void do_lines(int fd, char delim, void (*call)(char **pline, long len));
 long environ_bytes();
 long long millitime(void);
 char *format_iso_time(char *buf, size_t len, struct timespec *ts);
@@ -301,10 +305,12 @@ int xsocket(int domain, int type, int protocol);
 void xsetsockopt(int fd, int level, int opt, void *val, socklen_t len);
 struct addrinfo *xgetaddrinfo(char *host, char *port, int family, int socktype,
   int protocol, int flags);
-int xconnect(struct addrinfo *ai_arg);
+int xconnect(struct addrinfo *ai);
+int xbind(struct addrinfo *ai);
 int xpoll(struct pollfd *fds, int nfds, int timeout);
 int pollinate(int in1, int in2, int out1, int out2, int timeout, int shutdown_timeout);
 char *ntop(struct sockaddr *sa);
+void xsendto(int sockfd, void *buf, size_t len, struct sockaddr *dest);
 
 // password.c
 int get_salt(char *salt, char * algo);
@@ -354,12 +360,12 @@ void names_to_pid(char **names, int (*callback)(pid_t pid, char *name));
 pid_t __attribute__((returns_twice)) xvforkwrap(pid_t pid);
 #define XVFORK() xvforkwrap(vfork())
 
-// Wrapper to make xfuncs() return (via longjmp) instead of exiting.
+// Wrapper to make xfuncs() return (via siglongjmp) instead of exiting.
 // Assigns true/false "did it exit" value to first argument.
-#define WOULD_EXIT(y, x) do { jmp_buf _noexit; \
+#define WOULD_EXIT(y, x) do { sigjmp_buf _noexit; \
   int _noexit_res; \
   toys.rebound = &_noexit; \
-  _noexit_res = setjmp(_noexit); \
+  _noexit_res = sigsetjmp(_noexit, 1); \
   if (!_noexit_res) do {x;} while(0); \
   toys.rebound = 0; \
   y = _noexit_res; \

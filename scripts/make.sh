@@ -6,6 +6,7 @@ export LANG=c
 export LC_ALL=C
 set -o pipefail
 source ./configure
+source scripts/portability.sh
 
 [ ! -z "$CROSS_COMPILE" ] && [ ! -e "$CROSS_COMPILE"cc ] &&
   echo "missing ${CROSS_COMPILE}cc" && exit 1
@@ -15,12 +16,7 @@ source ./configure
 UNSTRIPPED="generated/unstripped/$(basename "$OUTNAME")"
 
 # Try to keep one more cc invocation going than we have processors
-[ -z "$CPUS" ] && CPUS=$(($(nproc)+1))
-
-if [ -z "$SED" ]
-then
-  [ ! -z "$(which gsed 2>/dev/null)" ] && SED=gsed || SED=sed
-fi
+[ -z "$CPUS" ] && CPUS=$(($(nproc 2>/dev/null)+1))
 
 # Respond to V= by echoing command lines as well as running them
 DOTPROG=
@@ -102,7 +98,7 @@ genbuildsh()
 }
 
 if ! cmp -s <(genbuildsh 2>/dev/null | head -n 6 ; echo LINK="'"$LDOPTIMIZE $LDFLAGS) \
-          <(head -n 7 generated/build.sh 2>/dev/null | sed '7s/ -o .*//')
+          <(head -n 7 generated/build.sh 2>/dev/null | $SED '7s/ -o .*//')
 then
   echo -n "Library probe"
 
@@ -112,10 +108,10 @@ then
   # for it.
 
   > generated/optlibs.dat
-  for i in util crypt m resolv selinux smack attr rt crypto z log
+  for i in util crypt m resolv selinux smack attr rt crypto z log iconv
   do
     echo "int main(int argc, char *argv[]) {return 0;}" | \
-    ${CROSS_COMPILE}${CC} $CFLAGS $LDFLAGS -xc - -o generated/libprobe -Wl,--as-needed -l$i > /dev/null 2>/dev/null &&
+    ${CROSS_COMPILE}${CC} $CFLAGS $LDFLAGS -xc - -o generated/libprobe $LDASNEEDED -l$i > /dev/null 2>/dev/null &&
     echo -l$i >> generated/optlibs.dat
     echo -n .
   done
@@ -125,7 +121,7 @@ fi
 
 # LINK needs optlibs.dat, above
 
-LINK="$(echo $LDOPTIMIZE $LDFLAGS -o "$UNSTRIPPED" -Wl,--as-needed $(cat generated/optlibs.dat))"
+LINK="$(echo $LDOPTIMIZE $LDFLAGS -o "$UNSTRIPPED" $LDASNEEDED $(cat generated/optlibs.dat))"
 genbuildsh > generated/build.sh && chmod +x generated/build.sh || exit 1
 
 #TODO: "make $SED && make" doesn't regenerate config.h because diff .config
@@ -135,7 +131,8 @@ then
 
   # This long and roundabout sed invocation is to make old versions of sed
   # happy. New ones have '\n' so can replace one line with two without all
-  # the branches and tedious mucking about with hold space.
+  # the branches and tedious mucking about with hyperspace.
+  # TODO: clean this up to use modern stuff.
 
   $SED -n \
     -e 's/^# CONFIG_\(.*\) is not set.*/\1/' \
@@ -300,9 +297,10 @@ do
   OUT="generated/obj/${X%%.c}.o"
   LNKFILES="$LNKFILES $OUT"
 
-  # $LIBFILES doesn't need to be rebuilt if newer than .config, $TOYFILES does
+  # $LIBFILES doesn't need to be rebuilt if older than .config, $TOYFILES does
+  # ($TOYFILES contents can depend on CONFIG symbols, lib/*.c never should.)
 
-  [ "$OUT" -nt "$i" ] && [ -z "$CLICK" -o "$OUT" -nt "$KCONFIG_CONFIG" ] &&
+  [ "$OUT" -nt "$i" ] && [ -z "$CLICK" -o "$OUT" -ot "$KCONFIG_CONFIG" ] &&
     continue
 
   do_loudly $BUILD -c $i -o $OUT &

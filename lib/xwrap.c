@@ -141,6 +141,11 @@ char *xmprintf(char *format, ...)
   return ret;
 }
 
+void xflush(void)
+{
+  if (fflush(0) || ferror(stdout)) perror_exit("write");
+}
+
 void xprintf(char *format, ...)
 {
   va_list va;
@@ -148,23 +153,39 @@ void xprintf(char *format, ...)
 
   vprintf(format, va);
   va_end(va);
-  if (fflush(stdout) || ferror(stdout)) perror_exit("write");
+  xflush();
 }
 
+// Put string with length (does not append newline)
+void xputsl(char *s, int len)
+{
+  int out;
+
+  while (len != (out = fwrite(s, 1, len, stdout))) {
+    if (out<1) perror_exit("write");
+    len -= out;
+    s += out;
+  }
+  xflush();
+}
+
+// xputs with no newline
+void xputsn(char *s)
+{
+  xputsl(s, strlen(s));
+}
+
+// Write string to stdout with newline, flushing and checking for errors
 void xputs(char *s)
 {
-  if (EOF == puts(s) || fflush(stdout) || ferror(stdout)) perror_exit("write");
+  puts(s);
+  xflush();
 }
 
 void xputc(char c)
 {
-  if (EOF == fputc(c, stdout) || fflush(stdout) || ferror(stdout))
-    perror_exit("write");
-}
-
-void xflush(void)
-{
-  if (fflush(stdout) || ferror(stdout)) perror_exit("write");;
+  if (EOF == fputc(c, stdout)) perror_exit("write");
+  xflush();
 }
 
 // This is called through the XVFORK macro because parent/child of vfork
@@ -186,7 +207,8 @@ pid_t __attribute__((returns_twice)) xvforkwrap(pid_t pid)
 void xexec(char **argv)
 {
   // Only recurse to builtin when we have multiplexer and !vfork context.
-  if (CFG_TOYBOX && !CFG_TOYBOX_NORECURSE && toys.stacktop) toy_exec(argv);
+  if (CFG_TOYBOX && !CFG_TOYBOX_NORECURSE && toys.stacktop && **argv != '/')
+    toy_exec(argv);
   execvp(argv[0], argv);
 
   perror_msg("exec %s", argv[0]);
@@ -376,6 +398,11 @@ int notstdio(int fd)
   }
 
   return fd;
+}
+
+void xrename(char *from, char *to)
+{
+  if (rename(from, to)) perror_exit("rename %s -> %s", from, to);
 }
 
 int xtempfile(char *name, char **tempname)
@@ -603,7 +630,7 @@ error:
 
 void xchdir(char *path)
 {
-  if (chdir(path)) error_exit("chdir '%s'", path);
+  if (chdir(path)) perror_exit("chdir '%s'", path);
 }
 
 void xchroot(char *path)

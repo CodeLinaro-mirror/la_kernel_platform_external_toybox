@@ -103,7 +103,7 @@ static void make_device(char *path)
         for(end = pos; end-conf<len && *end!='\n'; end++);
 
         // Four fields (last is optional): regex, uid:gid, mode [, name|path ]
-	// For example: (sd[a-z])1  root:disk 660 =usb_storage_p1
+        // For example: (sd[a-z])1  root:disk 660 =usb_storage_p1
         for (field = 4; field; field--) {
           // Skip whitespace
           while (pos<end && isspace(*pos)) pos++;
@@ -169,11 +169,11 @@ static void make_device(char *path)
             {
               char *beg_pos = pos;
               mode = strtoul(pos, &pos, 8);
-	      if(pos == beg_pos) {
+              if (pos == beg_pos) {
                 // The line is bad because mode setting could not be
                 // converted to numeric value.
                 goto end_line;
-	      }
+              }
               break;
             }
             // Try to look for name or path (optional field)
@@ -280,7 +280,8 @@ static int callback(struct dirtree *node)
   // Circa 2.6.25 the entries more than 2 deep are all either redundant
   // (mouse#, event#) or unnamed (every usb_* entry is called "device").
 
-  return (node->parent && node->parent->parent) ? 0 : DIRTREE_RECURSE;
+  if (node->parent && node->parent->parent) return 0;
+  return DIRTREE_RECURSE|DIRTREE_SYMFOLLOW;
 }
 
 void mdev_main(void)

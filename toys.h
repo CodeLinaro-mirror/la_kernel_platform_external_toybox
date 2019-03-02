@@ -62,10 +62,7 @@
 #include <wctype.h>
 
 // LSB 4.1 headers
-#include <pty.h>
 #include <sys/ioctl.h>
-#include <sys/statfs.h>
-#include <sys/sysinfo.h>
 
 #include "lib/lib.h"
 #include "lib/lsm.h"
@@ -111,7 +108,7 @@ extern struct toy_context {
   char wasroot;            // dropped setuid
 
   // This is at the end so toy_init() doesn't zero it.
-  jmp_buf *rebound;        // longjmp here instead of exit when do_rebound set
+  sigjmp_buf *rebound;     // siglongjmp here instead of exit when do_rebound
   struct arg_list *xexit;  // atexit() functions for xexit(), set by sigatexit()
   void *stacktop;          // nested toy_exec() call count, or 0 if vforked
 } toys;
@@ -121,6 +118,8 @@ extern struct toy_context {
 extern char toybuf[4096], libbuf[4096];
 
 extern char **environ;
+
+#define FLAG(x) (toys.optflags&FLAG_##x)
 
 #define GLOBALS(...)
 #define ARRAY_LEN(array) (sizeof(array)/sizeof(*array))

@@ -14,8 +14,8 @@ config FILE
 
     Examine the given files and describe their content types.
 
-    -h	don't follow symlinks (default)
-    -L	follow symlinks
+    -h	Don't follow symlinks (default)
+    -L	Follow symlinks
 */
 
 #define FOR_file
@@ -44,10 +44,10 @@ static void do_elf_file(int fd)
     {189, "microblaze"}, {0xbaab, "microblaze-old"}, {8, "mips"},
     {10, "mips-old"}, {89, "mn10300"}, {0xbeef, "mn10300-old"}, {113, "nios2"},
     {92, "openrisc"}, {0x8472, "openrisc-old"}, {15, "parisc"}, {20, "ppc"},
-    {21, "ppc64"}, {22, "s390"}, {0xa390, "s390-old"}, {135, "score"},
-    {42, "sh"}, {2, "sparc"}, {18, "sparc8+"}, {43, "sparc9"}, {188, "tile"},
-    {191, "tilegx"}, {3, "386"}, {6, "486"}, {62, "x86-64"}, {94, "xtensa"},
-    {0xabc7, "xtensa-old"}
+    {21, "ppc64"}, {243, "riscv"}, {22, "s390"}, {0xa390, "s390-old"},
+    {135, "score"}, {42, "sh"}, {2, "sparc"}, {18, "sparc8+"}, {43, "sparc9"},
+    {188, "tile"}, {191, "tilegx"}, {3, "386"}, {6, "486"}, {62, "x86-64"},
+    {94, "xtensa"}, {0xabc7, "xtensa-old"}
   };
   char *map = 0;
   off_t phoff, shoff;
@@ -302,20 +302,20 @@ static void do_regular_file(int fd, char *name)
     xprintf("Ogg data");
     // https://wiki.xiph.org/MIMETypesCodecs
     if (!memcmp(s+28, "CELT    ", 8)) xprintf(", celt audio");
-    if (!memcmp(s+28, "CMML    ", 8)) xprintf(", cmml text");
-    if (!memcmp(s+28, "BBCD\0", 5)) xprintf(", dirac video");
-    if (!memcmp(s+28, "\177FLAC", 5)) xprintf(", flac audio");
-    if (!memcmp(s+28, "\x8bJNG\r\n\x1a\n", 8)) xprintf(", jng video");
-    if (!memcmp(s+28, "\x80kate\0\0\0", 8)) xprintf(", kate text");
-    if (!memcmp(s+28, "OggMIDI\0", 8)) xprintf(", midi text");
-    if (!memcmp(s+28, "\x8aMNG\r\n\x1a\n", 8)) xprintf(", mng video");
-    if (!memcmp(s+28, "OpusHead", 8)) xprintf(", opus audio");
-    if (!memcmp(s+28, "PCM     ", 8)) xprintf(", pcm audio");
-    if (!memcmp(s+28, "\x89PNG\r\n\x1a\n", 8)) xprintf(", png video");
-    if (!memcmp(s+28, "Speex   ", 8)) xprintf(", speex audio");
-    if (!memcmp(s+28, "\x80theora", 7)) xprintf(", theora video");
-    if (!memcmp(s+28, "\x01vorbis", 7)) xprintf(", vorbis audio");
-    if (!memcmp(s+28, "YUV4MPEG", 8)) xprintf(", yuv4mpeg video");
+    else if (!memcmp(s+28, "CMML    ", 8)) xprintf(", cmml text");
+    else if (!memcmp(s+28, "BBCD\0", 5)) xprintf(", dirac video");
+    else if (!memcmp(s+28, "\177FLAC", 5)) xprintf(", flac audio");
+    else if (!memcmp(s+28, "\x8bJNG\r\n\x1a\n", 8)) xprintf(", jng video");
+    else if (!memcmp(s+28, "\x80kate\0\0\0", 8)) xprintf(", kate text");
+    else if (!memcmp(s+28, "OggMIDI\0", 8)) xprintf(", midi text");
+    else if (!memcmp(s+28, "\x8aMNG\r\n\x1a\n", 8)) xprintf(", mng video");
+    else if (!memcmp(s+28, "OpusHead", 8)) xprintf(", opus audio");
+    else if (!memcmp(s+28, "PCM     ", 8)) xprintf(", pcm audio");
+    else if (!memcmp(s+28, "\x89PNG\r\n\x1a\n", 8)) xprintf(", png video");
+    else if (!memcmp(s+28, "Speex   ", 8)) xprintf(", speex audio");
+    else if (!memcmp(s+28, "\x80theora", 7)) xprintf(", theora video");
+    else if (!memcmp(s+28, "\x01vorbis", 7)) xprintf(", vorbis audio");
+    else if (!memcmp(s+28, "YUV4MPEG", 8)) xprintf(", yuv4mpeg video");
     xputc('\n');
   } else if (len>32 && !memcmp(s, "RIF", 3) && !memcmp(s+8, "WAVEfmt ", 8)) {
     // https://en.wikipedia.org/wiki/WAV
