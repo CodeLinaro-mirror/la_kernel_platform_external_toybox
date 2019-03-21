@@ -248,7 +248,7 @@ struct string_list *find_in_path(char *path, char *filename)
 
   cwd = xgetcwd();
   for (;;) {
-    char *next = strchr(path, ':');
+    char *res, *next = strchr(path, ':');
     int len = next ? next-path : strlen(path);
     struct string_list *rnext;
     struct stat st;
@@ -257,9 +257,7 @@ struct string_list *find_in_path(char *path, char *filename)
       + (len ? len : strlen(cwd)) + 2);
     if (!len) sprintf(rnext->str, "%s/%s", cwd, filename);
     else {
-      char *res = rnext->str;
-
-      memcpy(res, path, len);
+      memcpy(res = rnext->str, path, len);
       res += len;
       *(res++) = '/';
       strcpy(res, filename);
@@ -544,13 +542,33 @@ char *readfile(char *name, char *ibuf, off_t len)
 }
 
 // Sleep for this many thousandths of a second
-void msleep(long miliseconds)
+void msleep(long milliseconds)
 {
   struct timespec ts;
 
-  ts.tv_sec = miliseconds/1000;
-  ts.tv_nsec = (miliseconds%1000)*1000000;
+  ts.tv_sec = milliseconds/1000;
+  ts.tv_nsec = (milliseconds%1000)*1000000;
   nanosleep(&ts, &ts);
+}
+
+// Adjust timespec by nanosecond offset
+void nanomove(struct timespec *ts, long long offset)
+{
+  long long nano = ts->tv_nsec + offset, secs = nano/1000000000;
+
+  ts->tv_sec += secs;
+  nano %= 1000000000;
+  if (nano<0) {
+    ts->tv_sec--;
+    nano += 1000000000;
+  }
+  ts->tv_nsec = nano;
+}
+
+// return difference between two timespecs in nanosecs
+long long nanodiff(struct timespec *old, struct timespec *new)
+{
+  return (new->tv_sec - old->tv_sec)*1000000000LL+(new->tv_nsec - old->tv_nsec);
 }
 
 // return 1<<x of highest bit set
