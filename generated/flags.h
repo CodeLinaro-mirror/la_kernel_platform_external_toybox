@@ -99,12 +99,14 @@
 #undef FLAG_i
 #endif
 
-// blkid    
+// blkid UL[!LU] UL[!LU]
 #undef OPTSTR_blkid
-#define OPTSTR_blkid 0
+#define OPTSTR_blkid "UL[!LU]"
 #ifdef CLEANUP_blkid
 #undef CLEANUP_blkid
 #undef FOR_blkid
+#undef FLAG_L
+#undef FLAG_U
 #endif
 
 // blockdev <1>1(setro)(setrw)(getro)(getss)(getbsz)(setbsz)#<0(getsz)(getsize)(getsize64)(getra)(setra)#<0(flushbufs)(rereadpt) <1>1(setro)(setrw)(getro)(getss)(getbsz)(setbsz)#<0(getsz)(getsize)(getsize64)(getra)(setra)#<0(flushbufs)(rereadpt)
@@ -972,15 +974,16 @@
 #undef FOR_getenforce
 #endif
 
-// getfattr dhn: dhn:
+// getfattr (only-values)dhn: (only-values)dhn:
 #undef OPTSTR_getfattr
-#define OPTSTR_getfattr "dhn:"
+#define OPTSTR_getfattr "(only-values)dhn:"
 #ifdef CLEANUP_getfattr
 #undef CLEANUP_getfattr
 #undef FOR_getfattr
 #undef FLAG_n
 #undef FLAG_h
 #undef FLAG_d
+#undef FLAG_only_values
 #endif
 
 // getprop   >2Z
@@ -1011,9 +1014,9 @@
 #undef FLAG_t
 #endif
 
-// grep (color):;S(exclude)*M(include)*ZzEFHIabhinorsvwclqe*f*C#B#A#m#x[!wx][!EFw] (color):;S(exclude)*M(include)*ZzEFHIabhinorsvwclqe*f*C#B#A#m#x[!wx][!EFw]
+// grep (color):;S(exclude)*M(include)*ZzEFHIab(byte-offset)h(no-filename)ino(only-matching)rsvwcl(files-with-matches)q(quiet)(silent)e*f*C#B#A#m#x[!wx][!EFw] (color):;S(exclude)*M(include)*ZzEFHIab(byte-offset)h(no-filename)ino(only-matching)rsvwcl(files-with-matches)q(quiet)(silent)e*f*C#B#A#m#x[!wx][!EFw]
 #undef OPTSTR_grep
-#define OPTSTR_grep "(color):;S(exclude)*M(include)*ZzEFHIabhinorsvwclqe*f*C#B#A#m#x[!wx][!EFw]"
+#define OPTSTR_grep "(color):;S(exclude)*M(include)*ZzEFHIab(byte-offset)h(no-filename)ino(only-matching)rsvwcl(files-with-matches)q(quiet)(silent)e*f*C#B#A#m#x[!wx][!EFw]"
 #ifdef CLEANUP_grep
 #undef CLEANUP_grep
 #undef FOR_grep
@@ -1652,6 +1655,16 @@
 #undef CLEANUP_makedevs
 #undef FOR_makedevs
 #undef FLAG_d
+#endif
+
+// mcookie   v(verbose)V(version)
+#undef OPTSTR_mcookie
+#define OPTSTR_mcookie "v(verbose)V(version)"
+#ifdef CLEANUP_mcookie
+#undef CLEANUP_mcookie
+#undef FOR_mcookie
+#undef FLAG_V
+#undef FLAG_v
 #endif
 
 // md5sum bc(check)s(status)[!bc] bc(check)s(status)[!bc]
@@ -2494,12 +2507,14 @@
 #undef FOR_sleep
 #endif
 
-// sntp   m:Sp:asdD[!as]
+// sntp   M:m:Sp:asdDqr#<4>17=10[!as]
 #undef OPTSTR_sntp
-#define OPTSTR_sntp "m:Sp:asdD[!as]"
+#define OPTSTR_sntp "M:m:Sp:asdDqr#<4>17=10[!as]"
 #ifdef CLEANUP_sntp
 #undef CLEANUP_sntp
 #undef FOR_sntp
+#undef FLAG_r
+#undef FLAG_q
 #undef FLAG_D
 #undef FLAG_d
 #undef FLAG_s
@@ -2507,6 +2522,7 @@
 #undef FLAG_p
 #undef FLAG_S
 #undef FLAG_m
+#undef FLAG_M
 #endif
 
 // sort gS:T:mo:k*t:xVbMcszdfirun gS:T:mo:k*t:xVbMcszdfirun
@@ -3397,6 +3413,8 @@
 #ifndef TT
 #define TT this.blkid
 #endif
+#define FLAG_L (1<<0)
+#define FLAG_U (1<<1)
 #endif
 
 #ifdef FOR_blockdev
@@ -4135,6 +4153,7 @@
 #define FLAG_n (1<<0)
 #define FLAG_h (1<<1)
 #define FLAG_d (1<<2)
+#define FLAG_only_values (1<<3)
 #endif
 
 #ifdef FOR_getprop
@@ -4698,6 +4717,14 @@
 #define TT this.makedevs
 #endif
 #define FLAG_d (1<<0)
+#endif
+
+#ifdef FOR_mcookie
+#ifndef TT
+#define TT this.mcookie
+#endif
+#define FLAG_V (FORCED_FLAG<<0)
+#define FLAG_v (FORCED_FLAG<<1)
 #endif
 
 #ifdef FOR_md5sum
@@ -5404,13 +5431,16 @@
 #ifndef TT
 #define TT this.sntp
 #endif
-#define FLAG_D (FORCED_FLAG<<0)
-#define FLAG_d (FORCED_FLAG<<1)
-#define FLAG_s (FORCED_FLAG<<2)
-#define FLAG_a (FORCED_FLAG<<3)
-#define FLAG_p (FORCED_FLAG<<4)
-#define FLAG_S (FORCED_FLAG<<5)
-#define FLAG_m (FORCED_FLAG<<6)
+#define FLAG_r (FORCED_FLAG<<0)
+#define FLAG_q (FORCED_FLAG<<1)
+#define FLAG_D (FORCED_FLAG<<2)
+#define FLAG_d (FORCED_FLAG<<3)
+#define FLAG_s (FORCED_FLAG<<4)
+#define FLAG_a (FORCED_FLAG<<5)
+#define FLAG_p (FORCED_FLAG<<6)
+#define FLAG_S (FORCED_FLAG<<7)
+#define FLAG_m (FORCED_FLAG<<8)
+#define FLAG_M (FORCED_FLAG<<9)
 #endif
 
 #ifdef FOR_sort

@@ -385,8 +385,10 @@ struct typography {
   {"STIME", "Start time (ISO 8601)", 5, SLOT_starttime},
   {"F", "Flags 1=FORKNOEXEC 4=SUPERPRIV", 1, XX|SLOT_flags},
   {"S", "Process state:\n"
-   "\t  R (running) S (sleeping) D (device I/O) T (stopped)  t (traced)\n"
-   "\t  Z (zombie)  X (deader)   x (dead)       K (wakekill) W (waking)",
+   "\t  R (running) S (sleeping) D (device I/O) T (stopped)  t (trace stop)\n"
+   "\t  X (dead)    Z (zombie)   P (parked)     I (idle)\n"
+   "\t  Also between Linux 2.6.33 and 3.13:\n"
+   "\t  x (dead)    K (wakekill) W (waking)\n",
    -1, XX},
   {"STAT", "Process state (S) plus:\n"
    "\t  < high priority          N low priority L locked memory\n"
@@ -811,10 +813,9 @@ static int get_ps(struct dirtree *new)
     sprintf(buf, "%lld/statm", slot[SLOT_tid]);
     if (!readfileat(fd, buf, buf, &temp)) *buf = 0;
 
-    // Skip redundant RSS field, we got it from stat
-    for (s = buf, i=0; i<3; i++)
-      if (!sscanf(s, " %lld%n", slot+SLOT_vsz+i/2, &j)) slot[SLOT_vsz+i/2] = 0;
-      else s += j;
+    // Skip redundant RSS field, we got it from stat.
+    slot[SLOT_vsz] = slot[SLOT_shr] = 0;
+    sscanf(buf, "%lld %*d %lld", &slot[SLOT_vsz], &slot[SLOT_shr]);
   }
 
   // Do we need to read "exe"?
@@ -1424,12 +1425,18 @@ static int header_line(int line, int rev)
 {
   if (!line) return 0;
 
-  if (FLAG(b)) rev = 0;
-
-  printf("%s%*.*s%s%s\n", rev ? "\033[7m" : "", -TT.width*!!FLAG(b), TT.width,
-    toybuf, rev ? "\033[0m" : "", FLAG(b) ? "" : "\r");
+  if (FLAG(b)) puts(toybuf);
+  else {
+    printf("%s%-*.*s%s\r\n", rev?"\033[7m":"", rev?TT.width:0, TT.width, toybuf,
+      rev?"\033[0m":"");
+  }
 
   return line-1;
+}
+
+static void top_cursor_cleanup(void)
+{
+  tty_esc("?25h");
 }
 
 static void top_common(
@@ -1443,13 +1450,18 @@ static void top_common(
   } plist[2], *plold, *plnew, old, new, mix;
   char scratch[16], *pos, *cpufields[] = {"user", "nice", "sys", "idle",
     "iow", "irq", "sirq", "host"};
- 
   unsigned tock = 0;
   int i, lines, topoff = 0, done = 0;
   char stdout_buf[BUFSIZ];
 
-  // Avoid flicker in interactive mode.
-  if (!FLAG(b)) setbuf(stdout, stdout_buf);
+  if (!TT.fields) perror_exit("no -o");
+
+  // Avoid flicker and hide the cursor in interactive mode.
+  if (!FLAG(b)) {
+    setbuf(stdout, stdout_buf);
+    tty_esc("?25l");
+    sigatexit(top_cursor_cleanup);
+  }
 
   toys.signal = SIGWINCH;
   TT.bits = get_headers(TT.fields, toybuf, sizeof(toybuf));
@@ -1536,18 +1548,25 @@ static void top_common(
         // Display "top" header.
         if (*toys.which->name == 't') {
           struct ofields field;
+          char *hr0 = toybuf+sizeof(toybuf)-32, *hr1 = hr0-32, *hr2 = hr1-32,
+            *hr3 = hr2-32;
           long long ll, up = 0;
           long run[6];
           int j;
 
           // Count running, sleeping, stopped, zombie processes.
+          // The kernel has more states (and different sets in different
+          // versions), so we need to map them. (R)unning and (Z)ombie are
+          // easy enough, and since "stopped" is rare (just T and t as of
+          // Linux 4.20), we assume everything else is "sleeping".
           field.which = PS_S;
           memset(run, 0, sizeof(run));
           for (i = 0; i<mix.count; i++)
-            run[1+stridx("RSTZ", *string_field(mix.tb[i], &field))]++;
+            run[1+stridx("RTtZ", *string_field(mix.tb[i], &field))]++;
           sprintf(toybuf,
-            "Tasks: %d total,%4ld running,%4ld sleeping,%4ld stopped,"
-            "%4ld zombie", mix.count, run[1], run[2], run[3], run[4]);
+            "%ss: %d total, %3ld running, %3ld sleeping, %3ld stopped, "
+            "%3ld zombie", FLAG(H)?"Thread":"Task", mix.count, run[1], run[0],
+            run[2]+run[3], run[4]);
           lines = header_line(lines, 0);
 
           if (readfile("/proc/meminfo", toybuf, sizeof(toybuf))) {
@@ -1556,13 +1575,21 @@ static void top_common(
                     "\nBuffers:","\nCached:","\nSwapTotal:","\nSwapFree:"}[i]);
               run[i] = pos ? atol(pos) : 0;
             }
-            sprintf(toybuf,
-             "Mem:%10ldk total,%9ldk used,%9ldk free,%9ldk buffers",
-              run[0], run[0]-run[1], run[1], run[2]);
+
+            human_readable(hr0, 1024*run[0], 0);
+            human_readable(hr1, 1024*(run[0]-run[1]), 0);
+            human_readable(hr2, 1024*run[1], 0);
+            human_readable(hr3, 1024*run[2], 0);
+            sprintf(toybuf, "  Mem: %9s total, %9s used, %9s free, %9s buffers",
+              hr0, hr1, hr2, hr3);
             lines = header_line(lines, 0);
-            sprintf(toybuf,
-              "Swap:%9ldk total,%9ldk used,%9ldk free,%9ldk cached",
-              run[4], run[4]-run[5], run[5], run[3]);
+
+            human_readable(hr0, 1024*run[4], 0);
+            human_readable(hr1, 1024*(run[4]-run[5]), 0);
+            human_readable(hr2, 1024*run[5], 0);
+            human_readable(hr3, 1024*run[3], 0);
+            sprintf(toybuf, " Swap: %9s total, %9s used, %9s free, %9s cached",
+              hr0, hr1, hr2, hr3);
             lines = header_line(lines, 0);
           }
 
@@ -1617,6 +1644,7 @@ static void top_common(
             pos[-1] = '[';
           if (!isspace(was) && isspace(is) && i==TT.sortpos+1) *pos = ']';
         }
+        if (FLAG(b)) while (isspace(*(pos-1))) --pos;
         *pos = 0;
         lines = header_line(lines, 1);
       }
@@ -1648,7 +1676,7 @@ static void top_common(
         msleep(timeout-now);
         // Make an obvious gap between datasets.
         xputs("\n\n");
-        continue;
+        break;
       } else fflush(stdout);
 
       i = scan_key_getsize(scratch, timeout-now, &TT.width, &TT.height);
@@ -1661,7 +1689,7 @@ static void top_common(
 
       // Flush unknown escape sequences.
       if (i==27) while (0<scan_key_getsize(scratch, 0, &TT.width, &TT.height));
-      else if (i==' ') {
+      else if (i=='\r' || i==' ') {
         timeout = 0;
         break;
       } else if (toupper(i)=='R')
