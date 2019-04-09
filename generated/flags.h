@@ -548,6 +548,14 @@
 #undef FOR_demo_utf8towc
 #endif
 
+// devmem <1>3 <1>3
+#undef OPTSTR_devmem
+#define OPTSTR_devmem "<1>3"
+#ifdef CLEANUP_devmem
+#undef CLEANUP_devmem
+#undef FOR_devmem
+#endif
+
 // df HPkhit*a[-HPkh] HPkhit*a[-HPkh]
 #undef OPTSTR_df
 #define OPTSTR_df "HPkhit*a[-HPkh]"
@@ -2616,14 +2624,16 @@
 #undef FLAG_a
 #endif
 
-// su   lmpc:s:
+// su   ^lmpu:g:c:s:[!lmp]
 #undef OPTSTR_su
-#define OPTSTR_su "lmpc:s:"
+#define OPTSTR_su "^lmpu:g:c:s:[!lmp]"
 #ifdef CLEANUP_su
 #undef CLEANUP_su
 #undef FOR_su
 #undef FLAG_s
 #undef FLAG_c
+#undef FLAG_g
+#undef FLAG_u
 #undef FLAG_p
 #undef FLAG_m
 #undef FLAG_l
@@ -2865,15 +2875,17 @@
 #undef FLAG_p
 #endif
 
-// timeout <2^vk:s:  <2^vk:s: 
+// timeout <2^(foreground)(preserve-status)vk:s(signal): <2^(foreground)(preserve-status)vk:s(signal):
 #undef OPTSTR_timeout
-#define OPTSTR_timeout "<2^vk:s: "
+#define OPTSTR_timeout "<2^(foreground)(preserve-status)vk:s(signal):"
 #ifdef CLEANUP_timeout
 #undef CLEANUP_timeout
 #undef FOR_timeout
 #undef FLAG_s
 #undef FLAG_k
 #undef FLAG_v
+#undef FLAG_preserve_status
+#undef FLAG_foreground
 #endif
 
 // top >0O*Hk*o*p*u*s#<1d%<100=3000m#n#<1bq[!oO] >0O*Hk*o*p*u*s#<1d%<100=3000m#n#<1bq[!oO]
@@ -3785,6 +3797,12 @@
 #ifdef FOR_demo_utf8towc
 #ifndef TT
 #define TT this.demo_utf8towc
+#endif
+#endif
+
+#ifdef FOR_devmem
+#ifndef TT
+#define TT this.devmem
 #endif
 #endif
 
@@ -5526,9 +5544,11 @@
 #endif
 #define FLAG_s (FORCED_FLAG<<0)
 #define FLAG_c (FORCED_FLAG<<1)
-#define FLAG_p (FORCED_FLAG<<2)
-#define FLAG_m (FORCED_FLAG<<3)
-#define FLAG_l (FORCED_FLAG<<4)
+#define FLAG_g (FORCED_FLAG<<2)
+#define FLAG_u (FORCED_FLAG<<3)
+#define FLAG_p (FORCED_FLAG<<4)
+#define FLAG_m (FORCED_FLAG<<5)
+#define FLAG_l (FORCED_FLAG<<6)
 #endif
 
 #ifdef FOR_sulogin
@@ -5736,6 +5756,8 @@
 #define FLAG_s (1<<0)
 #define FLAG_k (1<<1)
 #define FLAG_v (1<<2)
+#define FLAG_preserve_status (1<<3)
+#define FLAG_foreground (1<<4)
 #endif
 
 #ifdef FOR_top
