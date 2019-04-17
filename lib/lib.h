@@ -181,6 +181,8 @@ void xregcomp(regex_t *preg, char *rexec, int cflags);
 char *xtzset(char *new);
 void xsignal_flags(int signal, void *handler, int flags);
 void xsignal(int signal, void *handler);
+time_t xvali_date(struct tm *tm, char *str);
+void xparsedate(char *str, time_t *t, unsigned *nano, int endian);
 
 // lib.c
 void verror_msg(char *msg, int err, va_list va);
@@ -232,6 +234,9 @@ void loopfiles_rw(char **argv, int flags, int permissions,
   void (*function)(int fd, char *name));
 void loopfiles(char **argv, void (*function)(int fd, char *name));
 void loopfiles_lines(char **argv, void (*function)(char **pline, long len));
+long long sendfile_len(int in, int out, long long len);
+long long xsendfile_len(int in, int out, long long len);
+void xsendfile_pad(int in, int out, long long len);
 long long xsendfile(int in, int out);
 int wfchmodat(int rc, char *name, mode_t mode);
 int copy_tempfile(int fdin, char *name, char **tempname);
@@ -259,6 +264,8 @@ void do_lines(int fd, char delim, void (*call)(char **pline, long len));
 long environ_bytes();
 long long millitime(void);
 char *format_iso_time(char *buf, size_t len, struct timespec *ts);
+void reset_env(struct passwd *p, int clear);
+void loggit(int priority, char *format, ...);
 
 #define HR_SPACE 1 // Space between number and units
 #define HR_B     2 // Use "B" for single byte units
@@ -364,7 +371,7 @@ mode_t string_to_mode(char *mode_str, mode_t base);
 void mode_to_string(mode_t mode, char *buf);
 char *getdirname(char *name);
 char *getbasename(char *name);
-int fileunderdir(char *file, char *dir);
+char *fileunderdir(char *file, char *dir);
 void names_to_pid(char **names, int (*callback)(pid_t pid, char *name));
 
 pid_t __attribute__((returns_twice)) xvforkwrap(pid_t pid);
