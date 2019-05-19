@@ -13,7 +13,7 @@ config BLKID
   help
     usage: blkid [-UL] DEV...
 
-    Prints type, label and UUID of filesystem on a block device or image.
+    Print type, label and UUID of filesystem on a block device or image.
 
     -U	Show UUID only (or device with that UUID)
     -L	Show LABEL only (or device with that LABEL)
@@ -24,7 +24,7 @@ config FSTYPE
   help
     usage: fstype DEV...
 
-    Prints type of filesystem on a block device or image.
+    Print type of filesystem on a block device or image.
 */
 
 #define FOR_blkid
@@ -80,7 +80,7 @@ static void do_blkid(int fd, char *name)
     if (len != sizeof(toybuf)) return;
 
     // Iterate through types in range
-    for (i=0; i < sizeof(fstypes)/sizeof(struct fstype); i++) {
+    for (i=0; i<ARRAY_LEN(fstypes); i++) {
       uint64_t test;
 
       // Skip tests not in this 4k block
