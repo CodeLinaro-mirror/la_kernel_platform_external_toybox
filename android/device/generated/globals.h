@@ -1,11 +1,3 @@
-// toys/android/getprop.c
-
-struct getprop_data {
-  size_t size;
-  char **nv; // name/value pairs: even=name, odd=value
-  struct selabel_handle *handle;
-};
-
 // toys/android/log.c
 
 struct log_data {
@@ -73,6 +65,7 @@ struct killall_data {
   pid_t cur_pid;
   char **names;
   short *err;
+  struct int_list { struct int_list *next; int val; } *pids;
 };
 
 // toys/lsb/md5sum.c
@@ -225,6 +218,12 @@ struct base64_data {
   unsigned total;
 };
 
+// toys/other/blkid.c
+
+struct blkid_data {
+  struct arg_list *s;
+};
+
 // toys/other/blockdev.c
 
 struct blockdev_data {
@@ -308,6 +307,7 @@ struct losetup_data {
   int openflags;
   dev_t jdev;
   ino_t jino;
+  char *dir;
 };
 
 // toys/other/lspci.c
@@ -351,6 +351,7 @@ struct modinfo_data {
   char *F, *k, *b;
 
   long mod;
+  int count;
 };
 
 // toys/other/nsenter.c
@@ -403,6 +404,12 @@ struct switch_root_data {
   char *c;
 
   dev_t rootdev;
+};
+
+// toys/other/tac.c
+
+struct tac_data {
+  struct double_list *dl;
 };
 
 // toys/other/timeout.c
@@ -485,7 +492,7 @@ struct bootchartd_data {
   int proc_accounting;
   int is_login;
 
-  void *head;
+  pid_t cur_pid;
 };
 
 // toys/pending/brctl.c
@@ -526,6 +533,7 @@ struct dd_data {
     long sz, count;
     unsigned long long offset;
   } in, out;
+  unsigned conv, iflag, oflag;
 };;
 
 // toys/pending/dhcp.c
@@ -779,6 +787,29 @@ struct sh_data {
   char *command;
 
   long lineno;
+
+  struct double_list functions;
+  unsigned options;
+
+  // Running jobs.
+  struct sh_job {
+    struct sh_job *next, *prev;
+    unsigned jobno;
+
+    // Every pipeline has at least one set of arguments or it's Not A Thing
+    struct sh_arg {
+      char **v;
+      int c;
+    } pipeline;
+
+    // null terminated array of running processes in pipeline
+    struct sh_process {
+      struct string_list *delete; // expanded strings
+      int pid, exit;   // status? Stopped? Exited?
+      struct sh_arg arg;
+    } *procs, *proc;
+  } *jobs, *job;
+  unsigned jobcnt;
 };
 
 // toys/pending/stty.c
@@ -1074,13 +1105,14 @@ struct find_data {
   int topdir, xdev, depth;
   time_t now;
   long max_bytes;
+  char *start;
 };
 
 // toys/posix/grep.c
 
 struct grep_data {
   long m, A, B, C;
-  struct arg_list *f, *e, *M, *S;
+  struct arg_list *f, *e, *M, *S, *exclude_dir;
   char *color;
 
   char *purple, *cyan, *red, *green, *grey;
@@ -1165,6 +1197,7 @@ struct nl_data {
 
   // Count of consecutive blank lines for -l has to persist between files
   long lcount;
+  long slen;
 };
 
 // toys/posix/od.c
@@ -1268,6 +1301,7 @@ struct sort_data {
   void *key_list;
   int linecount;
   char **lines;
+  char *name;
 };
 
 // toys/posix/split.c
@@ -1290,7 +1324,8 @@ struct strings_data {
 struct tail_data {
   long n, c;
 
-  int file_no, ffd, *files;
+  int file_no, last_fd;
+  struct xnotify *not;
 };
 
 // toys/posix/tar.c
@@ -1298,7 +1333,7 @@ struct tail_data {
 struct tar_data {
   char *f, *C;
   struct arg_list *T, *X;
-  char *to_command, *owner, *group, *mtime;
+  char *to_command, *owner, *group, *mtime, *mode;
   struct arg_list *exclude;
 
   struct double_list *incl, *excl, *seen;
@@ -1369,14 +1404,13 @@ struct wc_data {
 
 struct xargs_data {
   long s, n;
-  char *E, *I;
+  char *E;
 
   long entries, bytes;
   char delim;
 };
 
 extern union global_union {
-	struct getprop_data getprop;
 	struct log_data log;
 	struct demo_number_data demo_number;
 	struct hello_data hello;
@@ -1404,6 +1438,7 @@ extern union global_union {
 	struct tunctl_data tunctl;
 	struct acpi_data acpi;
 	struct base64_data base64;
+	struct blkid_data blkid;
 	struct blockdev_data blockdev;
 	struct chrt_data chrt;
 	struct dos2unix_data dos2unix;
@@ -1428,6 +1463,7 @@ extern union global_union {
 	struct stat_data stat;
 	struct swapon_data swapon;
 	struct switch_root_data switch_root;
+	struct tac_data tac;
 	struct timeout_data timeout;
 	struct truncate_data truncate;
 	struct watch_data watch;
