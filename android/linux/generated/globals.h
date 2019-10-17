@@ -322,7 +322,7 @@ struct lspci_data {
 // toys/other/makedevs.c
 
 struct makedevs_data {
-  char *fname;
+  char *d;
 };
 
 // toys/other/mix.c
@@ -421,6 +421,7 @@ struct timeout_data {
   pid_t pid;
   struct timeval ktv;
   struct itimerval itv;
+  int signaled;
 };
 
 // toys/other/truncate.c
@@ -967,6 +968,8 @@ struct vi_data {
     int vi_mov_flag;
     int modified;
     char vi_reg;
+    char *last_search;
+    int tabstop;
 };
 
 // toys/pending/wget.c
@@ -1226,7 +1229,7 @@ struct paste_data {
 
 struct patch_data {
   char *i, *d;
-  long p;
+  long p, g;
 
   struct double_list *current_hunk;
   long oldline, oldlen, newline, newlen;
@@ -1353,7 +1356,7 @@ struct tar_data {
   // Parsed information about a tar header.
   struct tar_header {
     char *name, *link_target, *uname, *gname;
-    long long size;
+    long long size, ssize;
     uid_t uid;
     gid_t gid;
     mode_t mode;
@@ -1408,6 +1411,7 @@ struct xargs_data {
 
   long entries, bytes;
   char delim;
+  FILE *tty;
 };
 
 extern union global_union {
