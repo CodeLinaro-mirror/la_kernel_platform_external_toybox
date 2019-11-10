@@ -20,6 +20,8 @@
 #define USE_TOYBOX_PRLIMIT(...)
 #define CFG_TOYBOX_GETRANDOM 0
 #define USE_TOYBOX_GETRANDOM(...)
+#define CFG_ARCH 0
+#define USE_ARCH(...)
 #define CFG_BASENAME 1
 #define USE_BASENAME(...) __VA_ARGS__
 #define CFG_CAL 0
@@ -48,6 +50,8 @@
 #define USE_CP(...) __VA_ARGS__
 #define CFG_CP_PRESERVE 1
 #define USE_CP_PRESERVE(...) __VA_ARGS__
+#define CFG_DNSDOMAINNAME 0
+#define USE_DNSDOMAINNAME(...)
 #define CFG_MV 1
 #define USE_MV(...) __VA_ARGS__
 #define CFG_INSTALL 0
@@ -484,8 +488,8 @@
 #define USE_TASKSET(...)
 #define CFG_TIMEOUT 1
 #define USE_TIMEOUT(...) __VA_ARGS__
-#define CFG_TRUNCATE 0
-#define USE_TRUNCATE(...)
+#define CFG_TRUNCATE 1
+#define USE_TRUNCATE(...) __VA_ARGS__
 #define CFG_UPTIME 0
 #define USE_UPTIME(...)
 #define CFG_USLEEP 0
