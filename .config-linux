@@ -127,14 +127,14 @@ CONFIG_FIND=y
 CONFIG_GETCONF=y
 # CONFIG_GETENFORCE is not set
 # CONFIG_GETFATTR is not set
-# CONFIG_GETOPT is not set
+CONFIG_GETOPT=y
 # CONFIG_GETTY is not set
 CONFIG_GREP=y
 # CONFIG_GROUPADD is not set
 # CONFIG_GROUPDEL is not set
 # CONFIG_GROUPS is not set
 # CONFIG_GUNZIP is not set
-# CONFIG_GZIP is not set
+CONFIG_GZIP=y
 CONFIG_HEAD=y
 # CONFIG_HELLO is not set
 # CONFIG_HELP_EXTRAS is not set
