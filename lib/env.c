@@ -23,9 +23,9 @@ long environ_bytes()
 void xclearenv(void)
 {
   if (toys.envc) {
-    char **ss;
+    int i;
 
-    for (ss = environ; *ss; ss++) free(*ss);
+    for (i = 0; environ[i]; i++) if (i>=toys.envc) free(environ[i]);
     free(environ);
   }
   toys.envc = 0;
@@ -79,7 +79,7 @@ void xsetmyenv(int *envc, char ***env, char *name, char *val)
   // resize and null terminate if expanding
   if (!(*env)[i]) {
     len = i+1;
-    if (!(len&255)) *env = xrealloc(*env, len*sizeof(char *));
+    if (!(len&255)) *env = xrealloc(*env, (len+256)*sizeof(char *));
     (*env)[len] = 0;
   }
   (*env)[i] = new;
