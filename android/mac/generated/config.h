@@ -228,8 +228,8 @@
 #define USE_GETENFORCE(...)
 #define CFG_GETFATTR 0
 #define USE_GETFATTR(...)
-#define CFG_GETOPT 0
-#define USE_GETOPT(...)
+#define CFG_GETOPT 1
+#define USE_GETOPT(...) __VA_ARGS__
 #define CFG_GETTY 0
 #define USE_GETTY(...)
 #define CFG_GREP 1
@@ -242,8 +242,8 @@
 #define USE_GROUPS(...)
 #define CFG_GUNZIP 0
 #define USE_GUNZIP(...)
-#define CFG_GZIP 0
-#define USE_GZIP(...)
+#define CFG_GZIP 1
+#define USE_GZIP(...) __VA_ARGS__
 #define CFG_HEAD 1
 #define USE_HEAD(...) __VA_ARGS__
 #define CFG_HELLO 0
