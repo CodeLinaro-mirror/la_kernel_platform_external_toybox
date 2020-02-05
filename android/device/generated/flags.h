@@ -176,12 +176,13 @@
 #undef FOR_bzcat
 #endif
 
-// cal >2 >2
+// cal >2h >2h
 #undef OPTSTR_cal
-#define OPTSTR_cal ">2"
+#define OPTSTR_cal ">2h"
 #ifdef CLEANUP_cal
 #undef CLEANUP_cal
 #undef FOR_cal
+#undef FLAG_h
 #endif
 
 // cat uvte uvte
@@ -207,12 +208,14 @@
 #undef FLAG_v
 #endif
 
-// cd    
+// cd   >1LP[-LP]
 #undef OPTSTR_cd
-#define OPTSTR_cd 0
+#define OPTSTR_cd ">1LP[-LP]"
 #ifdef CLEANUP_cd
 #undef CLEANUP_cd
 #undef FOR_cd
+#undef FLAG_P
+#undef FLAG_L
 #endif
 
 // chattr    
@@ -1178,12 +1181,13 @@
 #undef FOR_hello
 #endif
 
-// help ah ah
+// help ahu ahu
 #undef OPTSTR_help
-#define OPTSTR_help "ah"
+#define OPTSTR_help "ahu"
 #ifdef CLEANUP_help
 #undef CLEANUP_help
 #undef FOR_help
+#undef FLAG_u
 #undef FLAG_h
 #undef FLAG_a
 #endif
@@ -2104,9 +2108,9 @@
 #undef FLAG_d
 #endif
 
-// patch (no-backup-if-mismatch)(dry-run)g#fulp#d:i:Rs(quiet) (no-backup-if-mismatch)(dry-run)xg#fulp#d:i:Rs(quiet)
+// patch >2(no-backup-if-mismatch)(dry-run)F#g#fulp#d:i:Rs(quiet) >2(no-backup-if-mismatch)(dry-run)xF#g#fulp#d:i:Rs(quiet)
 #undef OPTSTR_patch
-#define OPTSTR_patch "(no-backup-if-mismatch)(dry-run)g#fulp#d:i:Rs(quiet)"
+#define OPTSTR_patch ">2(no-backup-if-mismatch)(dry-run)F#g#fulp#d:i:Rs(quiet)"
 #ifdef CLEANUP_patch
 #undef CLEANUP_patch
 #undef FOR_patch
@@ -2119,6 +2123,7 @@
 #undef FLAG_u
 #undef FLAG_f
 #undef FLAG_g
+#undef FLAG_F
 #undef FLAG_x
 #undef FLAG_dry_run
 #undef FLAG_no_backup_if_mismatch
@@ -2291,6 +2296,25 @@
 #ifdef CLEANUP_readahead
 #undef CLEANUP_readahead
 #undef FOR_readahead
+#endif
+
+// readelf <1(dyn-syms)adhlnp:SsWx: <1(dyn-syms)adhlnp:SsWx:
+#undef OPTSTR_readelf
+#define OPTSTR_readelf "<1(dyn-syms)adhlnp:SsWx:"
+#ifdef CLEANUP_readelf
+#undef CLEANUP_readelf
+#undef FOR_readelf
+#undef FLAG_x
+#undef FLAG_W
+#undef FLAG_s
+#undef FLAG_S
+#undef FLAG_p
+#undef FLAG_n
+#undef FLAG_l
+#undef FLAG_h
+#undef FLAG_d
+#undef FLAG_a
+#undef FLAG_dyn_syms
 #endif
 
 // readlink <1nqmef(canonicalize)[-mef] <1nqmef(canonicalize)[-mef]
@@ -2482,23 +2506,29 @@
 #undef FLAG_h
 #endif
 
-// setsid ^<1t ^<1t
+// setsid ^<1wcd[!dc] ^<1wcd[!dc]
 #undef OPTSTR_setsid
-#define OPTSTR_setsid "^<1t"
+#define OPTSTR_setsid "^<1wcd[!dc]"
 #ifdef CLEANUP_setsid
 #undef CLEANUP_setsid
 #undef FOR_setsid
-#undef FLAG_t
+#undef FLAG_d
+#undef FLAG_c
+#undef FLAG_w
 #endif
 
-// sh   c:i
+// sh   (noediting)(noprofile)(norc)sc:i
 #undef OPTSTR_sh
-#define OPTSTR_sh "c:i"
+#define OPTSTR_sh "(noediting)(noprofile)(norc)sc:i"
 #ifdef CLEANUP_sh
 #undef CLEANUP_sh
 #undef FOR_sh
 #undef FLAG_i
 #undef FLAG_c
+#undef FLAG_s
+#undef FLAG_norc
+#undef FLAG_noprofile
+#undef FLAG_noediting
 #endif
 
 // sha1sum bc(check)s(status)[!bc] bc(check)s(status)[!bc]
@@ -3239,7 +3269,7 @@
 #undef FOR_vconfig
 #endif
 
-// vi   <1>1
+// vi <1>1 <1>1
 #undef OPTSTR_vi
 #define OPTSTR_vi "<1>1"
 #ifdef CLEANUP_vi
@@ -3531,6 +3561,7 @@
 #ifndef TT
 #define TT this.cal
 #endif
+#define FLAG_h (1<<0)
 #endif
 
 #ifdef FOR_cat
@@ -3556,6 +3587,8 @@
 #ifndef TT
 #define TT this.cd
 #endif
+#define FLAG_P (FORCED_FLAG<<0)
+#define FLAG_L (FORCED_FLAG<<1)
 #endif
 
 #ifdef FOR_chattr
@@ -4381,8 +4414,9 @@
 #ifndef TT
 #define TT this.help
 #endif
-#define FLAG_h (1<<0)
-#define FLAG_a (1<<1)
+#define FLAG_u (1<<0)
+#define FLAG_h (1<<1)
+#define FLAG_a (1<<2)
 #endif
 
 #ifdef FOR_hexedit
@@ -5162,9 +5196,10 @@
 #define FLAG_u (1<<6)
 #define FLAG_f (1<<7)
 #define FLAG_g (1<<8)
-#define FLAG_x (FORCED_FLAG<<9)
-#define FLAG_dry_run (1<<10)
-#define FLAG_no_backup_if_mismatch (1<<11)
+#define FLAG_F (1<<9)
+#define FLAG_x (FORCED_FLAG<<10)
+#define FLAG_dry_run (1<<11)
+#define FLAG_no_backup_if_mismatch (1<<12)
 #endif
 
 #ifdef FOR_pgrep
@@ -5310,6 +5345,23 @@
 #ifndef TT
 #define TT this.readahead
 #endif
+#endif
+
+#ifdef FOR_readelf
+#ifndef TT
+#define TT this.readelf
+#endif
+#define FLAG_x (1<<0)
+#define FLAG_W (1<<1)
+#define FLAG_s (1<<2)
+#define FLAG_S (1<<3)
+#define FLAG_p (1<<4)
+#define FLAG_n (1<<5)
+#define FLAG_l (1<<6)
+#define FLAG_h (1<<7)
+#define FLAG_d (1<<8)
+#define FLAG_a (1<<9)
+#define FLAG_dyn_syms (1<<10)
 #endif
 
 #ifdef FOR_readlink
@@ -5469,7 +5521,9 @@
 #ifndef TT
 #define TT this.setsid
 #endif
-#define FLAG_t (1<<0)
+#define FLAG_d (1<<0)
+#define FLAG_c (1<<1)
+#define FLAG_w (1<<2)
 #endif
 
 #ifdef FOR_sh
@@ -5478,6 +5532,10 @@
 #endif
 #define FLAG_i (FORCED_FLAG<<0)
 #define FLAG_c (FORCED_FLAG<<1)
+#define FLAG_s (FORCED_FLAG<<2)
+#define FLAG_norc (FORCED_FLAG<<3)
+#define FLAG_noprofile (FORCED_FLAG<<4)
+#define FLAG_noediting (FORCED_FLAG<<5)
 #endif
 
 #ifdef FOR_sha1sum

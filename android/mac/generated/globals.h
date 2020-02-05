@@ -284,9 +284,7 @@ struct hwclock_data {
 // toys/other/ionice.c
 
 struct ionice_data {
-  long pid;
-  long level;
-  long class;
+  long p, n, c;
 };
 
 // toys/other/login.c
@@ -781,6 +779,17 @@ struct openvt_data {
   unsigned long vt_num;
 };
 
+// toys/pending/readelf.c
+
+struct readelf_data {
+  char *x, *p;
+
+  char *elf, *shstrtab, *f;
+  long long shoff, phoff, size;
+  int bits, shnum, shentsize, phentsize;
+  int64_t (*elf_int)(void *ptr, unsigned size);
+};
+
 // toys/pending/route.c
 
 struct route_data {
@@ -793,11 +802,10 @@ struct sh_data {
   char *command;
 
   long lineno;
-
   char **locals;
-
   struct double_list functions;
-  unsigned options;
+  unsigned options, jobcnt;
+  int hfd;  // next high filehandle (>= 10)
 
   // Running jobs.
   struct sh_job {
@@ -812,19 +820,12 @@ struct sh_data {
 
     // null terminated array of running processes in pipeline
     struct sh_process {
-      struct string_list *delete;   // expanded strings
-      struct sh_redirects {
-        struct sh_redirects *next, *prev;
-        int count, rd[];
-      // rdlist = NULL if process didn't redirect, urd undoes <&- for builtins
-      // rdlist is ** because this is our view into inherited context
-      } **rdlist, *urd;
-      int pid, exit;
+      struct sh_process *next, *prev;
+      struct arg_list *delete;   // expanded strings
+      int *urd, envlen, pid, exit;  // undo redirects, child PID, exit status
       struct sh_arg arg;
     } *procs, *proc;
   } *jobs, *job;
-  struct sh_process *callback_pp;
-  unsigned jobcnt;
 };
 
 // toys/pending/stty.c
@@ -988,6 +989,22 @@ struct vi_data {
     char *last_search;
     int tabstop;
     int list;
+    struct str_line {
+      int alloc;
+      int len;
+      char *data;
+    } *il;
+    struct linelist {
+      struct linelist *up;//next
+      struct linelist *down;//prev
+      struct str_line *line;
+    } *text, *screen, *c_r;
+    //yank buffer
+    struct yank_buf {
+      char reg;
+      int alloc;
+      char* data;
+    } yank;
 };
 
 // toys/pending/wget.c
@@ -1000,6 +1017,12 @@ struct wget_data {
 
 struct basename_data {
   char *s;
+};
+
+// toys/posix/cal.c
+
+struct cal_data {
+  struct tm *now;
 };
 
 // toys/posix/chgrp.c
@@ -1254,7 +1277,7 @@ struct paste_data {
 
 struct patch_data {
   char *i, *d;
-  long p, g;
+  long p, g, F;
 
   struct double_list *current_hunk;
   long oldline, oldlen, newline, newlen;
@@ -1328,8 +1351,7 @@ struct sort_data {
 
   void *key_list;
   int linecount;
-  char **lines;
-  char *name;
+  char **lines, *name;
 };
 
 // toys/posix/split.c
@@ -1530,6 +1552,7 @@ extern union global_union {
 	struct modprobe_data modprobe;
 	struct more_data more;
 	struct openvt_data openvt;
+	struct readelf_data readelf;
 	struct route_data route;
 	struct sh_data sh;
 	struct stty_data stty;
@@ -1546,6 +1569,7 @@ extern union global_union {
 	struct vi_data vi;
 	struct wget_data wget;
 	struct basename_data basename;
+	struct cal_data cal;
 	struct chgrp_data chgrp;
 	struct chmod_data chmod;
 	struct cksum_data cksum;

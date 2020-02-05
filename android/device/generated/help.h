@@ -176,7 +176,7 @@
 
 #define HELP_shred "usage: shred [-fuz] [-n COUNT] [-s SIZE] FILE...\n\nSecurely delete a file by overwriting its contents with random data.\n\n-f		Force (chmod if necessary)\n-n COUNT	Random overwrite iterations (default 1)\n-o OFFSET	Start at OFFSET\n-s SIZE		Use SIZE instead of detecting file size\n-u		Unlink (actually delete file when done)\n-x		Use exact size (default without -s rounds up to next 4k)\n-z		Zero at end\n\nNote: data journaling filesystems render this command useless, you must\noverwrite all free space (fill up disk) to erase old data on those."
 
-#define HELP_setsid "usage: setsid [-t] command [args...]\n\nRun process in a new session.\n\n-t	Grab tty (become foreground process, receiving keyboard signals)"
+#define HELP_setsid "usage: setsid [-cdw] command [args...]\n\nRun process in a new session.\n\n-d	Detach from tty\n-c	Control tty (become foreground process & receive keyboard signals)\n-w	Wait for child (and exit with its status)"
 
 #define HELP_setfattr "usage: setfattr [-h] [-x|-n NAME] [-v VALUE] FILE...\n\nWrite POSIX extended attributes.\n\n-h	Do not dereference symlink\n-n	Set given attribute\n-x	Remove given attribute\n-v	Set value for attribute -n (default is empty)"
 
@@ -234,9 +234,9 @@
 
 #define HELP_lsmod "usage: lsmod\n\nDisplay the currently loaded modules, their sizes and their dependencies."
 
-#define HELP_chattr "usage: chattr [-R] [-+=AacDdijsStTu] [-v version] [File...]\n\nChange file attributes on a Linux second extended file system.\n\n-R	Recurse\n-v	Set the file's version/generation number\n\nOperators:\n  '-' Remove attributes\n  '+' Add attributes\n  '=' Set attributes\n\nAttributes:\n  A  Don't track atime\n  a  Append mode only\n  c  Enable compress\n  D  Write dir contents synchronously\n  d  Don't backup with dump\n  i  Cannot be modified (immutable)\n  j  Write all data to journal first\n  s  Zero disk storage when deleted\n  S  Write file contents synchronously\n  t  Disable tail-merging of partial blocks with other files\n  u  Allow file to be undeleted"
+#define HELP_chattr "usage: chattr [-R] [-+=AacDdijsStTu] [-v version] [file...]\n\nChange file attributes on a Linux second extended file system.\n\n-R	Recurse\n-v	Set the file's version/generation number\n\nOperators:\n  '-' Remove attributes\n  '+' Add attributes\n  '=' Set attributes\n\nAttributes:\n  A  Don't track atime\n  a  Append mode only\n  C  No copy on write\n  c  Enable compress\n  D  Write dir contents synchronously\n  d  Don't backup with dump\n  F  Case-insensitive directory lookups (casefold)\n  i  Cannot be modified (immutable)\n  j  Write all data to journal first\n  P  Project hierarchy\n  S  Write file contents synchronously\n  s  Zero disk storage when deleted\n  T  Top of directory hierarchy\n  t  Disable tail-merging of partial blocks with other files\n  u  Allow file to be undeleted"
 
-#define HELP_lsattr "usage: lsattr [-Radlv] [Files...]\n\nList file attributes on a Linux second extended file system.\n(AacDdijsStu defined in chattr --help)\n\n-R	Recursively list attributes of directories and their contents\n-a	List all files in directories, including files that start with '.'\n-d	List directories like other files, rather than listing their contents\n-l	List long flag names\n-v	List the file's version/generation number"
+#define HELP_lsattr "usage: lsattr [-Radlv] [file...]\n\nList file attributes on a Linux second extended file system.\nFlag letters are defined in chattr help.\n\n-R	Recursively list attributes of directories and their contents\n-a	List all files in directories, including files that start with '.'\n-d	List directories like other files, rather than listing their contents\n-l	List long flag names\n-v	List the file's version/generation number"
 
 #define HELP_losetup "usage: losetup [-cdrs] [-o OFFSET] [-S SIZE] {-d DEVICE...|-j FILE|-af|{DEVICE FILE}}\n\nAssociate a loopback device with a file, or show current file (if any)\nassociated with a loop device.\n\nInstead of a device:\n-a	Iterate through all loopback devices\n-f	Find first unused loop device (may create one)\n-j FILE	Iterate through all loopback devices associated with FILE\n\nexisting:\n-c	Check capacity (file size changed)\n-d DEV	Detach loopback device\n-D	Detach all loopback devices\n\nnew:\n-s	Show device name (alias --show)\n-o OFF	Start association at offset OFF into FILE\n-r	Read only\n-S SIZE	Limit SIZE of loopback association (alias --sizelimit)"
 
@@ -262,7 +262,7 @@
 
 #define HELP_hexedit "usage: hexedit FILENAME\n\nHexadecimal file editor. All changes are written to disk immediately.\n\n-r	Read only (display but don't edit)\n\nKeys:\nArrows        Move left/right/up/down by one line/column\nPg Up/Pg Dn   Move up/down by one page\n0-9, a-f      Change current half-byte to hexadecimal value\nu             Undo\nq/^c/^d/<esc> Quit"
 
-#define HELP_help "usage: help [-ah] [command]\n\nShow usage information for toybox commands.\nRun \"toybox\" with no arguments for a list of available commands.\n\n-h	HTML output\n-a	All commands"
+#define HELP_help "usage: help [-ahu] [COMMAND]\n\n-a	All commands\n-u	Usage only\n-h	HTML output\n\nShow usage information for toybox commands.\nRun \"toybox\" with no arguments for a list of available commands."
 
 #define HELP_fsync "usage: fsync [-d] [FILE...]\n\nSynchronize a file's in-core state with storage device.\n\n-d	Avoid syncing metadata"
 
@@ -353,6 +353,8 @@
 #define HELP_sh "usage: sh [-c command] [script]\n\nCommand shell.  Runs a shell script, or reads input interactively\nand responds to it.\n\n-c	command line to execute\n-i	interactive mode (default when STDIN is a tty)"
 
 #define HELP_route "usage: route [-ne] [-A [46]] [add|del TARGET [OPTIONS]]\n\nDisplay, add or delete network routes in the \"Forwarding Information Base\".\n\n-n	Show numerical addresses (no DNS lookups)\n-e	display netstat fields\n\nRouting means sending packets out a network interface to an address.\nThe kernel can tell where to send packets one hop away by examining each\ninterface's address and netmask, so the most common use of this command\nis to identify a \"gateway\" that forwards other traffic.\n\nAssigning an address to an interface automatically creates an appropriate\nnetwork route (\"ifconfig eth0 10.0.2.15/8\" does \"route add 10.0.0.0/8 eth0\"\nfor you), although some devices (such as loopback) won't show it in the\ntable. For machines more than one hop away, you need to specify a gateway\n(ala \"route add default gw 10.0.2.2\").\n\nThe address \"default\" is a wildcard address (0.0.0.0/0) matching all\npackets without a more specific route.\n\nAvailable OPTIONS include:\nreject   - blocking route (force match failure)\ndev NAME - force packets out this interface (ala \"eth0\")\nnetmask  - old way of saying things like ADDR/24\ngw ADDR  - forward packets to gateway ADDR"
+
+#define HELP_readelf "usage: readelf [-adhlnSsW] [-p SECTION] [-x SECTION] [file...]\n\nDisplays information about ELF files.\n\n-a	Equivalent to -dhlnSs\n-d	Show dynamic section\n-h	Show ELF header\n-l	Show program headers\n-n	Show notes\n-p S	Dump strings found in named/numbered section\n-S	Show section headers\n-s	Show symbol tables (.dynsym and .symtab)\n-W	Don't truncate fields (default in toybox)\n-x S	Hex dump of named/numbered section\n\n--dyn-syms	Show just .dynsym symbol table"
 
 #define HELP_deallocvt "usage: deallocvt [N]\n\nDeallocate unused virtual terminal /dev/ttyN, or all unused consoles."
 
@@ -460,7 +462,7 @@
 
 #define HELP_tty "usage: tty [-s]\n\nShow filename of terminal connected to stdin.\n\nPrints \"not a tty\" and exits with nonzero status if no terminal\nis connected to stdin.\n\n-s	Silent, exit code only"
 
-#define HELP_true "Return zero."
+#define HELP_true "usage: true\n\nReturn zero."
 
 #define HELP_touch "usage: touch [-amch] [-d DATE] [-t TIME] [-r FILE] FILE...\n\nUpdate the access and modification times of each FILE to the current time.\n\n-a	Change access time\n-m	Change modification time\n-c	Don't create file\n-h	Change symlink\n-d	Set time to DATE (in YYYY-MM-DDThh:mm:SS[.frac][tz] format)\n-t	Set time to TIME (in [[CC]YY]MMDDhhmm[.ss][frac] format)\n-r	Set time same as reference FILE"
 
@@ -504,7 +506,7 @@
 
 #define HELP_printf "usage: printf FORMAT [ARGUMENT...]\n\nFormat and print ARGUMENT(s) according to FORMAT, using C printf syntax\n(% escapes for cdeEfgGiosuxX, \\ escapes for abefnrtv0 or \\OCTAL or \\xHEX)."
 
-#define HELP_patch "usage: patch [-d DIR] [-i file] [-p depth] [-Rlsu] [--dry-run]\n\nApply a unified diff to one or more files.\n\n-d	Modify files in DIR\n-i	Input file (default=stdin)\n-l	Loose match (ignore whitespace)\n-p	Number of '/' to strip from start of file paths (default=all)\n-R	Reverse patch\n-s	Silent except for errors\n-u	Ignored (only handles \"unified\" diffs)\n--dry-run Don't change files, just confirm patch applies\n\nThis version of patch only handles unified diffs, and only modifies\na file when all hunks to that file apply.  Patch prints failed hunks\nto stderr, and exits with nonzero status if any hunks fail.\n\nA file compared against /dev/null (or with a date <= the epoch) is\ncreated/deleted as appropriate."
+#define HELP_patch "usage: patch [-d DIR] [-i PATCH] [-p depth] [-F FUZZ] [-Rlsu] [--dry-run] [FILE [PATCH]]\n\nApply a unified diff to one or more files.\n\n-d	Modify files in DIR\n-i	Input patch file (default=stdin)\n-l	Loose match (ignore whitespace)\n-p	Number of '/' to strip from start of file paths (default=all)\n-R	Reverse patch\n-s	Silent except for errors\n-u	Ignored (only handles \"unified\" diffs)\n--dry-run Don't change files, just confirm patch applies\n\nThis version of patch only handles unified diffs, and only modifies\na file when all hunks to that file apply. Patch prints failed hunks\nto stderr, and exits with nonzero status if any hunks fail.\n\nA file compared against /dev/null (or with a date <= the epoch) is\ncreated/deleted as appropriate."
 
 #define HELP_paste "usage: paste [-s] [-d DELIMITERS] [FILE...]\n\nMerge corresponding lines from each input file.\n\n-d	List of delimiter characters to separate fields with (default is \\t)\n-s	Sequential mode: turn each input file into one line of output"
 
@@ -554,7 +556,7 @@
 
 #define HELP_file "usage: file [-bhLs] [file...]\n\nExamine the given files and describe their content types.\n\n-b	Brief (no filename)\n-h	Don't follow symlinks (default)\n-L	Follow symlinks\n-s	Show block/char device contents"
 
-#define HELP_false "Return nonzero."
+#define HELP_false "usage: false\n\nReturn nonzero."
 
 #define HELP_expand "usage: expand [-t TABLIST] [FILE...]\n\nExpand tabs to spaces according to tabstops.\n\n-t	TABLIST\n\nSpecify tab stops, either a single number instead of the default 8,\nor a comma separated list of increasing numbers representing tabstop\npositions (absolute, not increments) with each additional tab beyond\nthat becoming one space."
 
@@ -568,7 +570,7 @@
 
 #define HELP_df "usage: df [-HPkhi] [-t type] [FILESYSTEM ...]\n\nThe \"disk free\" command shows total/used/available disk space for\neach filesystem listed on the command line, or all currently mounted\nfilesystems.\n\n-a	Show all (including /proc and friends)\n-P	The SUSv3 \"Pedantic\" option\n-k	Sets units back to 1024 bytes (the default without -P)\n-h	Human readable (K=1024)\n-H	Human readable (k=1000)\n-i	Show inodes instead of blocks\n-t type	Display only filesystems of this type\n\nPedantic provides a slightly less useful output format dictated by Posix,\nand sets the units to 512 bytes instead of the default 1024 bytes."
 
-#define HELP_date "usage: date [-u] [-r FILE] [-d DATE] [+DISPLAY_FORMAT] [-D SET_FORMAT] [SET]\n\nSet/get the current date/time. With no SET shows the current date.\n\n-d	Show DATE instead of current time (convert date format)\n-D	+FORMAT for SET or -d (instead of MMDDhhmm[[CC]YY][.ss])\n-r	Use modification time of FILE instead of current date\n-u	Use UTC instead of current timezone\n\nSupported input formats:\n\nMMDDhhmm[[CC]YY][.ss]     POSIX\n@UNIXTIME[.FRACTION]      seconds since midnight 1970-01-01\nYYYY-MM-DD [hh:mm[:ss]]   ISO 8601\nhh:mm[:ss]                24-hour time today\n\nAll input formats can be preceded by TZ=\"id\" to set the input time zone\nseparately from the output time zone. Otherwise $TZ sets both.\n\n+FORMAT specifies display format string using strftime(3) syntax:\n\n%% literal %             %n newline              %t tab\n%S seconds (00-60)       %M minute (00-59)       %m month (01-12)\n%H hour (0-23)           %I hour (01-12)         %p AM/PM\n%y short year (00-99)    %Y year                 %C century\n%a short weekday name    %A weekday name         %u day of week (1-7, 1=mon)\n%b short month name      %B month name           %Z timezone name\n%j day of year (001-366) %d day of month (01-31) %e day of month ( 1-31)\n%N nanosec (output only)\n\n%U Week of year (0-53 start sunday)   %W Week of year (0-53 start monday)\n%V Week of year (1-53 start monday, week < 4 days not part of this year)\n\n%D = \"%m/%d/%y\"    %r = \"%I : %M : %S %p\"   %T = \"%H:%M:%S\"   %h = \"%b\"\n%x locale date     %X locale time           %c locale date/time"
+#define HELP_date "usage: date [-u] [-r FILE] [-d DATE] [+DISPLAY_FORMAT] [-D SET_FORMAT] [SET]\n\nSet/get the current date/time. With no SET shows the current date.\n\n-d	Show DATE instead of current time (convert date format)\n-D	+FORMAT for SET or -d (instead of MMDDhhmm[[CC]YY][.ss])\n-r	Use modification time of FILE instead of current date\n-u	Use UTC instead of current timezone\n\nSupported input formats:\n\nMMDDhhmm[[CC]YY][.ss]     POSIX\n@UNIXTIME[.FRACTION]      seconds since midnight 1970-01-01\nYYYY-MM-DD [hh:mm[:ss]]   ISO 8601\nhh:mm[:ss]                24-hour time today\n\nAll input formats can be preceded by TZ=\"id\" to set the input time zone\nseparately from the output time zone. Otherwise $TZ sets both.\n\n+FORMAT specifies display format string using strftime(3) syntax:\n\n%% literal %             %n newline              %t tab\n%S seconds (00-60)       %M minute (00-59)       %m month (01-12)\n%H hour (0-23)           %I hour (01-12)         %p AM/PM\n%y short year (00-99)    %Y year                 %C century\n%a short weekday name    %A weekday name         %u day of week (1-7, 1=mon)\n%b short month name      %B month name           %Z timezone name\n%j day of year (001-366) %d day of month (01-31) %e day of month ( 1-31)\n%N nanosec (output only)\n\n%U Week of year (0-53 start sunday)   %W Week of year (0-53 start monday)\n%V Week of year (1-53 start monday, week < 4 days not part of this year)\n\n%F \"%Y-%m-%d\"     %R \"%H:%M\"        %T \"%H:%M:%S\"    %z numeric timezone\n%D \"%m/%d/%y\"     %r \"%I:%M:%S %p\"  %h \"%b\"          %s unix epoch time\n%x locale date    %X locale time    %c locale date/time"
 
 #define HELP_cut "usage: cut [-Ds] [-bcfF LIST] [-dO DELIM] [FILE...]\n\nPrint selected parts of lines from each FILE to standard output.\n\nEach selection LIST is comma separated, either numbers (counting from 1)\nor dash separated ranges (inclusive, with X- meaning to end of line and -X\nfrom start). By default selection ranges are sorted and collated, use -D\nto prevent that.\n\n-b	Select bytes\n-c	Select UTF-8 characters\n-C	Select unicode columns\n-d	Use DELIM (default is TAB for -f, run of whitespace for -F)\n-D	Don't sort/collate selections or match -fF lines without delimiter\n-f	Select fields (words) separated by single DELIM character\n-F	Select fields separated by DELIM regex\n-O	Output delimiter (default one space for -F, input delim for -f)\n-s	Skip lines without delimiters"
 
@@ -600,7 +602,7 @@
 
 #define HELP_cat "usage: cat [-etuv] [file...]\n\nCopy (concatenate) files to stdout.  If no files listed, copy from stdin.\nFilename \"-\" is a synonym for stdin.\n\n-e	Mark each newline with $\n-t	Show tabs as ^I\n-u	Copy one byte at a time (slow)\n-v	Display nonprinting characters as escape sequences with M-x for\n	high ascii characters (>127), and ^x for other nonprinting chars"
 
-#define HELP_cal "usage: cal [[month] year]\n\nPrint a calendar.\n\nWith one argument, prints all months of the specified year.\nWith two arguments, prints calendar for month and year."
+#define HELP_cal "usage: cal [[month] year]\n\nPrint a calendar.\n\nWith one argument, prints all months of the specified year.\nWith two arguments, prints calendar for month and year.\n\n-h	Don't highlight today"
 
 #define HELP_basename "usage: basename [-a] [-s SUFFIX] NAME... | NAME [SUFFIX]\n\nReturn non-directory portion of a pathname removing suffix.\n\n-a		All arguments are names\n-s SUFFIX	Remove suffix (implies -a)"
 
