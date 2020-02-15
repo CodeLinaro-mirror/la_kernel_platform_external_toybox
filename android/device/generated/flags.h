@@ -345,12 +345,13 @@
 #undef FOR_count
 #endif
 
-// cp <2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fi[-HLPd][-ni] <2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fi[-HLPd][-ni]
+// cp <2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fiT[-HLPd][-ni] <2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fiT[-HLPd][-ni]
 #undef OPTSTR_cp
-#define OPTSTR_cp "<2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fi[-HLPd][-ni]"
+#define OPTSTR_cp "<2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fiT[-HLPd][-ni]"
 #ifdef CLEANUP_cp
 #undef CLEANUP_cp
 #undef FOR_cp
+#undef FLAG_T
 #undef FLAG_i
 #undef FLAG_f
 #undef FLAG_F
@@ -1644,9 +1645,9 @@
 #undef FLAG_color
 #endif
 
-// lsattr vldaR vldaR
+// lsattr vpldaR vpldaR
 #undef OPTSTR_lsattr
-#define OPTSTR_lsattr "vldaR"
+#define OPTSTR_lsattr "vpldaR"
 #ifdef CLEANUP_lsattr
 #undef CLEANUP_lsattr
 #undef FOR_lsattr
@@ -1654,6 +1655,7 @@
 #undef FLAG_a
 #undef FLAG_d
 #undef FLAG_l
+#undef FLAG_p
 #undef FLAG_v
 #endif
 
@@ -1915,12 +1917,13 @@
 #undef FLAG_q
 #endif
 
-// mv <2vnF(remove-destination)fi[-ni] <2vnF(remove-destination)fi[-ni]
+// mv <2vnF(remove-destination)fiT[-ni] <2vnF(remove-destination)fiT[-ni]
 #undef OPTSTR_mv
-#define OPTSTR_mv "<2vnF(remove-destination)fi[-ni]"
+#define OPTSTR_mv "<2vnF(remove-destination)fiT[-ni]"
 #ifdef CLEANUP_mv
 #undef CLEANUP_mv
 #undef FOR_mv
+#undef FLAG_T
 #undef FLAG_i
 #undef FLAG_f
 #undef FLAG_F
@@ -3269,12 +3272,13 @@
 #undef FOR_vconfig
 #endif
 
-// vi <1>1 <1>1
+// vi >1s: >1s:
 #undef OPTSTR_vi
-#define OPTSTR_vi "<1>1"
+#define OPTSTR_vi ">1s:"
 #ifdef CLEANUP_vi
 #undef CLEANUP_vi
 #undef FOR_vi
+#undef FLAG_s
 #endif
 
 // vmstat >2n >2n
@@ -3698,23 +3702,24 @@
 #ifndef TT
 #define TT this.cp
 #endif
-#define FLAG_i (1<<0)
-#define FLAG_f (1<<1)
-#define FLAG_F (1<<2)
-#define FLAG_n (1<<3)
-#define FLAG_v (1<<4)
-#define FLAG_l (1<<5)
-#define FLAG_s (1<<6)
-#define FLAG_a (1<<7)
-#define FLAG_d (1<<8)
-#define FLAG_r (1<<9)
-#define FLAG_p (1<<10)
-#define FLAG_P (1<<11)
-#define FLAG_L (1<<12)
-#define FLAG_H (1<<13)
-#define FLAG_R (1<<14)
-#define FLAG_D (1<<15)
-#define FLAG_preserve (1<<16)
+#define FLAG_T (1<<0)
+#define FLAG_i (1<<1)
+#define FLAG_f (1<<2)
+#define FLAG_F (1<<3)
+#define FLAG_n (1<<4)
+#define FLAG_v (1<<5)
+#define FLAG_l (1<<6)
+#define FLAG_s (1<<7)
+#define FLAG_a (1<<8)
+#define FLAG_d (1<<9)
+#define FLAG_r (1<<10)
+#define FLAG_p (1<<11)
+#define FLAG_P (1<<12)
+#define FLAG_L (1<<13)
+#define FLAG_H (1<<14)
+#define FLAG_R (1<<15)
+#define FLAG_D (1<<16)
+#define FLAG_preserve (1<<17)
 #endif
 
 #ifdef FOR_cpio
@@ -4805,7 +4810,8 @@
 #define FLAG_a (1<<1)
 #define FLAG_d (1<<2)
 #define FLAG_l (1<<3)
-#define FLAG_v (1<<4)
+#define FLAG_p (1<<4)
+#define FLAG_v (1<<5)
 #endif
 
 #ifdef FOR_lsmod
@@ -5024,11 +5030,12 @@
 #ifndef TT
 #define TT this.mv
 #endif
-#define FLAG_i (1<<0)
-#define FLAG_f (1<<1)
-#define FLAG_F (1<<2)
-#define FLAG_n (1<<3)
-#define FLAG_v (1<<4)
+#define FLAG_T (1<<0)
+#define FLAG_i (1<<1)
+#define FLAG_f (1<<2)
+#define FLAG_F (1<<3)
+#define FLAG_n (1<<4)
+#define FLAG_v (1<<5)
 #endif
 
 #ifdef FOR_nbd_client
@@ -6168,6 +6175,7 @@
 #ifndef TT
 #define TT this.vi
 #endif
+#define FLAG_s (1<<0)
 #endif
 
 #ifdef FOR_vmstat

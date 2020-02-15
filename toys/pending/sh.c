@@ -19,19 +19,23 @@
  *
  * Things like the bash man page are good to read too.
  *
+ * deviations from posix: don't care about $LANG or $LC_ALL
+
  * TODO: test that $PS1 color changes work without stupid \[ \] hack
- * TODO: make fake pty wrapper for test infrastructure
- * TODO: // Handle embedded NUL bytes in the command line.
- * existing but considered builtins: false kill pwd true time
+ * TODO: Handle embedded NUL bytes in the command line? (When/how?)
+ * TODO: replace getenv() with faster func: sort env and binary search
+
  * buitins: alias bg command fc fg getopts jobs newgrp read umask unalias wait
- * "special" builtins: break continue : . eval exec export readonly return set
- *   shift times trap unset
+ *          disown umask suspend source pushd popd dirs logout times trap
+ *          unset local export readonly set : . let history declare
+ * "special" builtins: break continue eval exec return shift
+ * builtins with extra shell behavior: kill pwd time test
+
  * | & ; < > ( ) $ ` \ " ' <space> <tab> <newline>
  * * ? [ # ~ = %
  * ! { } case do done elif else esac fi for if in then until while
  * [[ ]] function select
- * $@ $* $# $? $- $$ $! $0
- * ENV HOME IFS LANG LC_ALL LINENO PATH PPID PS1 PS2 PS4 PWD
+
  * label:
  * TODO: test exit from "trap EXIT" doesn't recurse
  * TODO: ! history expansion
@@ -44,7 +48,7 @@
  *   then until while { } time [[ ]]
 
 USE_SH(NEWTOY(cd, ">1LP[-LP]", TOYFLAG_NOFORK))
-USE_SH(NEWTOY(exit, NULL, TOYFLAG_NOFORK))
+USE_SH(NEWTOY(exit, 0, TOYFLAG_NOFORK))
 
 USE_SH(NEWTOY(sh, "(noediting)(noprofile)(norc)sc:i", TOYFLAG_BIN))
 USE_SH(OLDTOY(toysh, sh, TOYFLAG_BIN))
@@ -94,12 +98,12 @@ config EXIT
 #include "toys.h"
 
 GLOBALS(
-  char *command;
+  char *c;
 
   long lineno;
-  char **locals;
+  char **locals, *subshell_env;
   struct double_list functions;
-  unsigned options, jobcnt;
+  unsigned options, jobcnt, loc_ro, loc_magic;
   int hfd;  // next high filehandle (>= 10)
 
   // Running jobs.
@@ -145,14 +149,13 @@ static void syntax_err(char *msg, ...)
   if (*toys.optargs) xexit();
 }
 
+// append to array with null terminator and realloc as necessary
 void array_add(char ***list, unsigned count, char *data)
 {
   if (!(count&31)) *list = xrealloc(*list, sizeof(char *)*(count+33));
   (*list)[count] = data;
   (*list)[count+1] = 0;
 }
-
-// TODO local variables
 
 // Return index of variable within this list
 static unsigned findvar(char **list, char *name, int len)
@@ -176,10 +179,7 @@ static void setvar(char *s, unsigned type)
   unsigned uu;
   int len = stridx(s, '=');
 
-  if (len == -1) {
-    error_msg("no = in setvar %s\n", s);
-    return;
-  }
+  if (len == -1) return error_msg("no = in setvar %s\n", s);
 
   if (type&TAKE_MEM) type ^= TAKE_MEM;
   else s = xstrdup(s);
@@ -190,13 +190,11 @@ static void setvar(char *s, unsigned type)
   if (environ && environ[uu = findvar(environ, s, len)]) {
     if (uu>=toys.envc) free(environ[uu]);
     environ[uu] = s;
-  } else {
-    uu = 0;
-    if (TT.locals && TT.locals[uu = findvar(TT.locals, s, len)]) {
-      free(TT.locals[uu]);
-      TT.locals[uu] = s;
-    } else array_add(&TT.locals, uu, s);
-  }
+  } else if (TT.locals[uu = findvar(TT.locals, s, len)]) {
+    if (uu<TT.loc_ro) return error_msg("%.*s: readonly variable", len, s);
+    free(TT.locals[uu]);
+    TT.locals[uu] = s;
+  } else array_add(&TT.locals, uu, s);
 }
 
 // get variable of length len starting at s.
@@ -217,10 +215,8 @@ static char *getvar(char *s)
   return getvarlen(s, strlen(s));
 }
 
-
-
-// returns pointer to next unquoted (or double quoted if dquot) char.
-// handle \ '' "" `` $()
+// returns offset of next unquoted (or double quoted if dquot) char.
+// handles \ '' "" `` $()
 int skip_quote(char *s, int dquot, int *depth)
 {
   int i, q = dquot ? *depth : 0;
@@ -230,12 +226,13 @@ int skip_quote(char *s, int dquot, int *depth)
     char c = s[i], qq = q ? toybuf[q-1] : 0;
 
     if (c == '\\') i++;
+    else if (dquot && q==1 && qq=='"' && c!='"') break;
     else if (qq!='\'' && c=='$' && s[1]=='(') {
       toybuf[q++] = ')';
       i++;
     } else if (q && qq==c) q--;
     else if ((!q || qq==')') && (c=='"' || c=='\'' || c=='`')) toybuf[q++] = c;
-    else if (!q || (dquot && q==1 && qq=='"')) break;
+    else if (!q) break;
   }
 
   if (dquot) *depth = q;
@@ -243,15 +240,26 @@ int skip_quote(char *s, int dquot, int *depth)
   return i;
 }
 
-// quote removal, brace, tilde, parameter/variable, $(command),
-// $((arithmetic)), split, path 
-#define NO_PATH  (1<<0)
-#define NO_SPLIT (1<<1)
-#define NO_BRACE (1<<2)
-#define NO_TILDE (1<<3)
-#define NO_QUOTE (1<<4)
-#define FORCE_COPY (1<<31)
-#define FORCE_KEEP (1<<30)
+// add argument to an arg_list
+void add_arg(struct arg_list **list, char *arg)
+{
+  struct arg_list *al;
+
+  if (!list) return;
+  al = xmalloc(sizeof(struct arg_list));
+  al->next = *list;
+  al->arg = arg;
+  *list = al;
+}
+
+#define NO_PATH  (1<<0)    // path expansion (wildcards)
+#define NO_SPLIT (1<<1)    // word splitting
+#define NO_BRACE (1<<2)    // {brace,expansion}
+#define NO_TILDE (1<<3)    // ~username/path
+#define NO_QUOTE (1<<4)    // quote removal
+#define FORCE_COPY (1<<31) // don't keep original, copy even if not modified
+#define FORCE_KEEP (1<<30) // this is a copy, free if not appended to delete
+// TODO: parameter/variable $(command) $((math)) split pathglob
 // TODO: ${name:?error} causes an error/abort here (syntax_err longjmp?)
 // TODO: $1 $@ $* need args marshalled down here: function+structure?
 // arg = append to this
@@ -262,7 +270,7 @@ int skip_quote(char *s, int dquot, int *depth)
 static void expand_arg_nobrace(struct sh_arg *arg, char *old, unsigned flags,
   struct arg_list **delete)
 {
-  char *new = old;
+  char *new = old, *s, *ss, *sss;
 
   if (flags&FORCE_KEEP) old = 0;
 
@@ -271,7 +279,6 @@ static void expand_arg_nobrace(struct sh_arg *arg, char *old, unsigned flags,
   // Tilde expansion
   if (!(flags&NO_TILDE) && *new == '~') {
     struct passwd *pw = 0;
-    char *s, *ss, *sss;
 
     // first expansion so don't need to free previous new
     ss = 0;
@@ -290,22 +297,28 @@ static void expand_arg_nobrace(struct sh_arg *arg, char *old, unsigned flags,
     new = s;
   }
 
-// ${ $(( $( $[ $' ` " '
+  // parameter/variable expansion
+
+// TODO this is wrong
+  if (*new == '$') {
+    char *s = getvar(new+1);
+
+    if (new != old) free(new);
+    if (!s) return;
+    new = xstrdup(s);
+  }
 
 /*
+  for (s = new; *(s += skip_quote(s, 1, &depth));) {
+    if (*s == '`') {
+
+// ${ $(( $( $[ $' ` " '
+
   while (*s) {
-    if (!quote && !(flags&NO_BRACE) && *s == '{') {
-TODO this recurses
-    } else if (quote != '*s == '$') {
+    if (quote != '*s == '$') {
       // *@#?-$!_0 "Special Paremeters" ($0 not affected by shift)
       // 0-9 positional parameters
       if (s[1] == '$'
-
-// EUID GROUPS HOSTNAME HOSTTYPE=$(uname -m) MACHTYPE=$HOSTTYPE-unknown-linux
-// OLDPWD OSTYPE=linux/android PIPESTATUS PPID PWD RANDOM REPLY SECONDS UID
-// COLUMNS LINES HOME SHELL
-// IFS PATH
-// PS0 PS1='$ ' PS2='> ' PS3
     }
   }
 
@@ -321,8 +334,9 @@ TODO this recurses
   }
 */
 
+// TODO not else?
   // quote removal
-  if (!(flags&NO_QUOTE)) {
+  else if (!(flags&NO_QUOTE)) {
     int to = 0, from = 0;
 
     for (;;) {
@@ -337,13 +351,7 @@ TODO this recurses
 
   // Record result.
   if (old==new && (flags&FORCE_COPY)) new = xstrdup(new);
-  if (old!=new && delete) {
-    struct arg_list *al = xmalloc(sizeof(struct arg_list));
-
-    al->next = *delete;
-    al->arg = new;
-    *delete = al;
-  }
+  if (old!=new) add_arg(delete, new);
   array_add(&arg->v, arg->c++, new);
 }
 
@@ -474,7 +482,6 @@ static void expand_arg(struct sh_arg *arg, char *old, unsigned flags,
     if (!bb) return llist_traverse(blist, free);
   }
 }
-
 
 // Expand exactly one arg, returning NULL if it split.
 static char *expand_one_arg(char *new, unsigned flags, struct arg_list **del)
@@ -607,13 +614,57 @@ struct sh_function {
   char *end;
 };
 
-// TODO: try to avoid prototype.
-static int parse_line(char *line, struct sh_function *sp);
-void free_function(struct sh_function *sp);
+// TODO: waitpid(WNOHANG) to clean up zombies and catch background& ending
 
-void run_subshell(struct sh_pipeline *sp)
+static void subshell_callback(void)
 {
-  dprintf(2, "TODO: run_subshell\n");
+  TT.subshell_env = xmprintf("@%d,%d=", getpid(), getppid());
+  xsetenv(TT.subshell_env, 0);
+  TT.subshell_env[strlen(TT.subshell_env)-1] = 0;
+}
+
+// TODO avoid prototype
+static int sh_run(char *new);
+
+// Pass environment and command string to child shell
+static int run_subshell(char *str, int len)
+{
+  pid_t pid;
+
+  // The with-mmu path is significantly faster.
+  if (CFG_TOYBOX_FORK) {
+    char *s;
+
+    if ((pid = fork())<0) perror_msg("fork");
+    else if (pid>0) {
+      s = xstrndup(str, len);
+      sh_run(s);
+      free(s);
+
+      _exit(toys.exitval);
+    }
+
+  // On nommu vfork, exec /proc/self/exe, and pipe state data to ourselves.
+  } else {
+    int pipes[2], i;
+
+    // open pipe to child
+    if (pipe(pipes) || 254 != dup2(pipes[0], 254)) return 1;
+    close(pipes[0]);
+    fcntl(pipes[1], F_SETFD, FD_CLOEXEC);
+
+    // vfork child
+    pid = xpopen_setup(0, 0, subshell_callback);
+
+    // marshall data to child
+    close(254);
+    if (TT.locals)
+      for (i = 0; TT.locals[i]; i++) dprintf(pipes[1], "%s\n", TT.locals[i]);
+    dprintf(pipes[1], "%.*s\n", len, str);
+    close(pipes[1]);
+  }
+
+  return pid;
 }
 
 // Expand arguments and perform redirections. Return new process object with
@@ -639,32 +690,27 @@ static struct sh_process *expand_redir(struct sh_arg *arg, int envlen, int *urd)
 
     // Handle <() >() redirectionss
     if ((*s == '<' || *s == '>') && s[1] == '(') {
-      struct sh_function sf;
       int pipes[2], *uu = 0, dd;
 
       // Grab subshell data
-      memset(&sf, 0, sizeof(struct sh_function));
-      errno = 0;
-      if (parse_line(s+1, &sf) || pipe(pipes)) {
+      if (pipe(pipes)) {
         perror_msg_raw(s);
-        free_function(&sf);
         pp->exit = 1;
 
         return pp;
       }
-// pipe[1] > pipe[0]->0
-// pipe[0] < pipe[1]->1 
 
       // Perform input or output redirect and launch process
       dd = *s == '<';
       save_redirect(&uu, pipes[dd], dd);
-      fcntl(pipes[!dd], F_SETFD, FD_CLOEXEC);
-      run_subshell(sf.pipeline); // ignore errors, don't track
+      close(pipes[dd]);
+      run_subshell(s+2, strlen(s+2)-1); // ignore errors, don't track
       unredirect(uu);
       save_redirect(&urd, -1, pipes[!dd]);
 
-      // Argument is /dev/fd/%d with pipe filehandle
-      dlist_add((void *)&pp->delete, ss = xmprintf("/dev/fd/%d", pipes[dd]));
+      // bash uses /dev/fd/%d which requires /dev/fd to be a symlink to
+      // /proc/self/fd so we just produce that directly.
+      add_arg(&pp->delete, ss = xmprintf("/proc/self/fd/%d", pipes[!dd]));
       array_add(&pp->arg.v, pp->arg.c++, ss);
 
       continue;
@@ -755,7 +801,7 @@ static struct sh_process *expand_redir(struct sh_arg *arg, int envlen, int *urd)
       free(tmp);
       if (bad) break;
 
-    // from>=0 means it's fd<<2 (new fd to dup2() after vfork()) plus
+    // from is fd<<2 (new fd to dup2() after vfork()) plus
     // 2 if we should close(from>>2) after dup2(from>>2, to),
     // 1 if we should close but dup for nofork recovery (ala <&2-)
 
@@ -772,7 +818,7 @@ static struct sh_process *expand_redir(struct sh_arg *arg, int envlen, int *urd)
       }
 
       from = (ss==sss) ? to : atoi(sss);
-      if (*ss == '-') saveclose++;
+      saveclose = 2-(*ss == '-');
     } else {
 
       // Permissions to open external file with: < > >> <& >& <> >| &>> &>
@@ -804,8 +850,8 @@ static struct sh_process *expand_redir(struct sh_arg *arg, int envlen, int *urd)
       setvar(cv, TAKE_MEM);
       cv = 0;
     }
-    if (saveclose && save_redirect(&pp->urd, -1, from)) bad++;
-    close(from);
+    if ((saveclose&1) && save_redirect(&pp->urd, -1, from)) bad++;
+    if (!(saveclose&2)) close(from);
     if (bad) break;
   }
 
@@ -847,12 +893,11 @@ if (BUGBUG) { int i; dprintf(255, "envlen=%d arg->c=%d run=", envlen, arg->c); f
 
   // Do nothing if nothing to do
   } else if (pp->exit || !pp->arg.v);
-  else if (!strcmp(*pp->arg.v, "((")) {
-    printf("Math!\n");
-// TODO: handle ((math))
+//  else if (!strcmp(*pp->arg.v, "(("))
+// TODO: handle ((math)) currently totally broken
 // TODO: call functions()
   // Is this command a builtin that should run in this process?
-  } else if ((tl = toy_find(*pp->arg.v))
+  else if ((tl = toy_find(*pp->arg.v))
     && (tl->flags & (TOYFLAG_NOFORK|TOYFLAG_MAYFORK)))
   {
     struct toy_context temp;
@@ -874,25 +919,30 @@ if (BUGBUG) { int i; dprintf(255, "envlen=%d arg->c=%d run=", envlen, arg->c); f
     memcpy(&toys, &temp, sizeof(struct toy_context));
   } else {
     char **env = 0, **old = environ, *ss, *sss;
-    int kk, ll;
+    int kk = 0, ll;
 
-    // Assign leading environment variables
-    if (envlen) {
-      kk = 0;
-      if (environ) while (environ[kk]) kk++;
-      if (kk) env = xmemdup(environ, sizeof(char *)*(kk+33));
-      for (j = 0; j<envlen; j++) {
-        sss = expand_one_arg(arg->v[j], NO_PATH|NO_SPLIT, &pp->delete);
-        for (ll = 0; ll<kk; ll++) {
-          for (s = sss, ss = env[ll]; *s == *ss && *s != '='; s++, ss++);
-          if (*s != '=') continue;
-          env[ll] = sss;
-          break;
-        }
-        if (ll == kk) array_add(&env, kk, sss);
-      }
+    // We don't allocate/free any array members, just the array
+    if (environ) while (environ[kk]) kk++;
+    if (kk) {
+      env = xmalloc(sizeof(char *)*(kk+33));
+      memcpy(env, environ, sizeof(char *)*(kk+1));
       environ = env;
     }
+    // assign leading environment variables
+    for (j = 0; j<envlen; j++) {
+      sss = expand_one_arg(arg->v[j], NO_PATH|NO_SPLIT, &pp->delete);
+      for (ll = 0; ll<kk; ll++) {
+        for (s = sss, ss = env[ll]; *s == *ss && *s != '='; s++, ss++);
+        if (*s != '=') continue;
+        env[ll] = sss;
+        break;
+      }
+      if (ll == kk) array_add(&environ, kk++, sss);
+    }
+    ss = getvar("SHLVL");
+    sprintf(toybuf, "%d", atoi(ss ? ss : "")+1);
+    xsetenv("SHLVL", toybuf);
+
     if (-1 == (pp->pid = xpopen_both(pp->arg.v, 0)))
       perror_msg("%s: vfork", *pp->arg.v);
 
@@ -1382,6 +1432,24 @@ static void dump_state(struct sh_function *sp)
   }
 }
 
+void dump_filehandles(char *when)
+{
+  int fd = open("/proc/self/fd", O_RDONLY);
+  DIR *dir = fdopendir(fd);
+  char buf[256];
+
+  if (dir) {
+    struct dirent *dd;
+
+    while ((dd = readdir(dir))) {
+      if (atoi(dd->d_name)!=fd && 0<readlinkat(fd, dd->d_name, buf,sizeof(buf)))
+        dprintf(2, "OPEN %s %d: %s = %s\n", when, getpid(), dd->d_name, buf);
+    }
+    closedir(dir);
+  }
+  close(fd);
+}
+
 /* Flow control statements:
 
   if/then/elif/else/fi, for select while until/do/done, case/esac,
@@ -1612,14 +1680,7 @@ dprintf(2, "TODO skipped init for((;;)), need math parser\n");
         pl = pl->next;
       }
 
-/* TODO
-case/esac
-{/}
-[[/]]
-(/)
-((/))
-function/}
-*/
+// TODO case/esac {/} [[/]] (/) ((/)) function/}
 
     // gearshift from block start to block body (end of flow control test)
     } else if (pl->type == 2) {
@@ -1686,7 +1747,7 @@ static int sh_run(char *new)
   struct sh_function scratch;
   int rc;
 
-// TODO: parse with len? (End early?)
+// TODO switch the fmemopen for -c to use this? Error checking? $(blah)
 
   memset(&scratch, 0, sizeof(struct sh_function));
   if (!parse_line(new, &scratch)) run_function(&scratch);
@@ -1757,57 +1818,105 @@ static void do_prompt(char *prompt)
   writeall(2, toybuf, len);
 }
 
-void subshell_imports(void)
+// only set local variable when global not present
+static void setonlylocal(char ***to, char *name, char *val)
 {
-/*
-  // TODO cull local variables because 'env "()=42" env | grep 42' works.
+  if (getenv(name)) return;
+  *(*to)++ = xmprintf("%s=%s", name, val ? val : "");
+}
 
-  // vfork() means subshells have to export and then re-import locals/functions
-  sprintf(toybuf, "(%d#%d)", getpid(), getppid());
-  if ((s = getenv(toybuf))) {
-    char *from, *to, *ss;
+// init locals, sanitize environment, handle nommu subshell handoff
+void subshell_setup(void)
+{
+  struct passwd *pw = getpwuid(getuid());
+  int to, from, pid = 0, ppid = 0, mypid, myppid, len;
+  char *s, *ss, **ll, *locals[] = {"GROUPS=", "SECONDS=", "RANDOM=", "LINENO=",
+    xmprintf("PPID=%d", myppid = getppid()), xmprintf("EUID=%d", geteuid()),
+    xmprintf("$=%d", mypid = getpid()), xmprintf("UID=%d", getuid())};
+  struct stat st;
+  struct utsname uu;
+  FILE *fp;
 
-    unsetenv(toybuf);
-    ss = s;
+  // Initialize read only local variables
+  TT.locals = xmalloc(32*sizeof(char *));
+  memcpy(TT.locals, locals, sizeof(locals));
+  ll = TT.locals+(TT.loc_ro = ARRAY_LEN(locals));
+  TT.loc_magic = 4;
 
-    // Loop through packing \\ until \0
-    for (from = to = s; *from; from++, to++) {
-      *to = *from;
-      if (*from != '\\') continue;
-      if (from[1] == '\\' || from[1] == '0') from++;
-      if (from[1] != '0') continue;
-      *to = 0;
+  // Add local variables that can be overwritten
+  setonlylocal(&ll, "PATH", _PATH_DEFPATH);
+  if (!pw) pw = (void *)toybuf; // first use, so still zeroed
+  setonlylocal(&ll, "HOME", *pw->pw_dir ? pw->pw_dir : "/");
+  setonlylocal(&ll, "SHELL", pw->pw_shell);
+  setonlylocal(&ll, "USER", pw->pw_name);
+  setonlylocal(&ll, "LOGNAME", pw->pw_name);
+  gethostname(toybuf, sizeof(toybuf)-1);
+  *ll++ = xmprintf("HOSTNAME=%s", toybuf);
+  uname(&uu);
+  setonlylocal(&ll, "HOSTTYPE", uu.machine);
+  sprintf(toybuf, "%s-unknown-linux", uu.machine);
+  setonlylocal(&ll, "MACHTYPE", toybuf);
+  setonlylocal(&ll, "OSTYPE", uu.sysname);
+  // sprintf(toybuf, "%s-toybox", TOYBOX_VERSION);
+  // setonlylocal(&ll, "BASH_VERSION", toybuf);
+  *ll++ = xstrdup("OPTERR=1");
+  *toybuf = 0;
+  if (readlink0("/proc/self/exe", toybuf, sizeof(toybuf)))
+    setonlylocal(&ll, "BASH", toybuf);
+  *ll = 0;
 
-      // save chunk
-      for (ss = s; ss<to; ss++) {
-        if (*ss == '=') {
-          // first char of name is variable type ala declare
-          if (s+1<ss && strchr("aAilnru", *s)) {
-            setvar(ss, *s);
+  // Ensure environ copied and toys.envc set, and clean out illegal entries
+  xunsetenv("");
+  for (to = from = 0; (s = environ[from]); from++) {
 
-            break;
-          }
-        } else if (!strncmp(ss, "(){", 3)) {
-          FILE *ff = fmemopen(s, to-s, "r");
+    // If nommu subshell gets handoff
+    if (!CFG_TOYBOX_FORK && !toys.stacktop) {
+      len = 0;
+      sscanf(s, "@%d,%d%n", &pid, &ppid, &len);
+      if (len && s[len]) pid = ppid = 0;
+    }
 
-          while ((new = xgetline(ff, 0))) {
-            if ((prompt = parse_line(new, &scratch))<0) break;
-            free(new);
-          }
-          if (!prompt) {
-            add_function(s, scratch.pipeline);
-            free_function(&scratch);
-            break;
-          }
-          fclose(ff);
-        } else if (!isspace(*s) && !ispunct(*s)) continue;
+    // Filter out non-shell variable names
+    for (len = 0; s[len] && ((s[len] == '_') || !ispunct(s[len])); len++);
+    if (s[len] == '=') environ[to++] = environ[from];
+  }
+  environ[toys.optc = to] = 0;
 
-        error_exit("bad locals");
-      }
-      s = from+1;
+  // set/update PWD
+  sh_run("cd .");
+
+  // set _ to path to this shell
+  s = toys.argv[0];
+  ss = 0;
+  if (!strchr(s, '/')) {
+    if (!(ss = getcwd(0, 0))) {
+      if (*toybuf) s = toybuf;
+    } else {
+      s = xmprintf("%s/%s", ss, s);
+      free(ss);
+      ss = s;
     }
   }
-*/
+  xsetenv("_", s);
+  free(ss);
+  if (!getvar("SHLVL")) xsetenv("SHLVL", "1");
+
+//TODO indexed array,associative array,integer,local,nameref,readonly,uppercase
+//          if (s+1<ss && strchr("aAilnru", *s)) {
+
+  // sanity check: magic env variable, pipe status
+  if (CFG_TOYBOX_FORK || toys.stacktop || pid!=mypid || ppid!=myppid) return;
+  if (fstat(254, &st) || !S_ISFIFO(st.st_mode)) error_exit(0);
+  fcntl(254, F_SETFD, FD_CLOEXEC);
+  fp = fdopen(254, "r");
+
+  // This is not efficient, could array_add the local vars.
+// TODO implicit exec when possible
+  while ((s = xgetline(fp, 0))) to = sh_run(s);
+  fclose(fp);
+
+  toys.exitval = to;
+  xexit();
 }
 
 void sh_main(void)
@@ -1820,24 +1929,11 @@ void sh_main(void)
   TT.hfd = 10;
   signal(SIGPIPE, SIG_IGN);
 
-  // Ensure environ copied and toys.envc set
-  xunsetenv("");
-
-  // TODO: traverse and unset illegal environment variables named "$" and such
-
   // TODO euid stuff?
-
+  // TODO login shell?
   // TODO read profile, read rc
 
   // if (!FLAG(noprofile)) { }
-
-  // Set local variable $HOME to user's login path
-  if (!(new = getenv("HOME"))) {
-    struct passwd *pw = getpwuid(getuid());
-
-    setvar(xmprintf("HOME=%s", (pw && *pw->pw_dir)?pw->pw_dir:"/"), TAKE_MEM);
-  }
-  sh_run("cd .");
 
 if (BUGBUG) { int fd = open("/dev/tty", O_RDWR); dup2(fd, 255); close(fd); }
   // Is this an interactive shell?
@@ -1846,10 +1942,12 @@ if (BUGBUG) { int fd = open("/dev/tty", O_RDWR); dup2(fd, 255); close(fd); }
   // Set up signal handlers and grab control of this tty.
 
   // Read environment for exports from parent shell
-  subshell_imports();
+  subshell_setup();
 
   memset(&scratch, 0, sizeof(scratch));
-  if (TT.command) f = fmemopen(TT.command, strlen(TT.command), "r");
+
+// TODO unify fmemopen() here with sh_run
+  if (TT.c) f = fmemopen(TT.c, strlen(TT.c), "r");
   else if (*toys.optargs) f = xfopen(*toys.optargs, "r");
   else {
     f = stdin;
@@ -1865,7 +1963,7 @@ if (BUGBUG) { int fd = open("/dev/tty", O_RDWR); dup2(fd, 255); close(fd); }
       if (!s) s = prompt ? "> " : (getpid() ? "\\$ " : "# ");
       do_prompt(s);
     } else TT.lineno++;
-// TODO line editing/history
+// TODO line editing/history, should set $COLUMNS $LINES and sigwinch update
     if (!(new = xgetline(f ? f : stdin, 0))) break;
 // TODO if (!isspace(*new)) add_to_history(line);
 
@@ -1936,21 +2034,22 @@ void cd_main(void)
 
     // cancel out . and .. in the string
     for (from = to = dd; *from;) {
-      while (*from=='/' && from[1]=='/') from++;
-      if (*from!='/' || from[1]!='.') *to++ = *from++;
+      if (*from=='/' && from[1]=='/') from++;
+      else if (*from!='/' || from[1]!='.') *to++ = *from++;
       else if (!from[2] || from[2]=='/') from += 2;
       else if (from[2]=='.' && (!from[3] || from[3]=='/')) {
         from += 3;
         while (to>dd && *--to != '/');
       } else *to++ = *from++;
     }
+    if (to == dd) to++;
     if (to-dd>1 && to[-1]=='/') to--;
     *to = 0;
   }
 
   if (bad || chdir(dd)) perror_msg("chdir '%s'", dd);
   else {
-    if (pwd) xsetenv("OLD", pwd);
+    if (pwd) xsetenv("OLDPWD", pwd);
     xsetenv("PWD", dd);
   }
   free(dd);
@@ -1960,5 +2059,3 @@ void exit_main(void)
 {
   exit(*toys.optargs ? atoi(*toys.optargs) : 0);
 }
-
-
