@@ -178,7 +178,7 @@ do_fail()
 txpect()
 {
   # Run command with redirection through fifos
-  NAME="$1"
+  NAME="$CMDNAME $1"
   CASE=
 
   if [ $# -lt 2 ] || ! mkfifo in-$$ out-$$ err-$$
@@ -202,7 +202,7 @@ txpect()
     case ${1::1} in
 
       # send input to child
-      I) echo -en "${1:1}" >&$IN || { do_fail;break;} ;;
+      I) printf %s "${1:1}" >&$IN || { do_fail;break;} ;;
 
       # check output from child
       [OE])
@@ -211,7 +211,7 @@ txpect()
         [ ${1::1} == 'E' ] && O=$ERR
         A=
         read -t2 $LARG A <&$O
-        [ "$VERBOSE" == xpect ] && echo "$A" >&2
+        [ "$VERBOSE" == xpect ] && printf '%s\n' "$A" >&2
         if [ $LEN -eq 0 ]
         then
           [ -z "$A" ] && { do_fail;break;}

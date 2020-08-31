@@ -73,10 +73,10 @@ struct killall_data {
 struct md5sum_data {
   int sawline;
 
+  unsigned *md5table;
   // Crypto variables blanked after summing
-  unsigned state[5];
-  unsigned oldstate[5];
-  uint64_t count;
+  unsigned state[5], oldstate[5];
+  unsigned long long count;
   union {
     char c[64];
     unsigned i[16];
@@ -159,7 +159,7 @@ struct ifconfig_data {
 // toys/net/microcom.c
 
 struct microcom_data {
-  char *s;
+  long s;
 
   int fd;
   struct termios original_stdin_state, original_fd_state;
@@ -177,7 +177,7 @@ struct netcat_data {
 struct netstat_data {
   struct num_cache *inodes;
   int wpad;
-};;
+};
 
 // toys/net/ping.c
 
@@ -216,6 +216,12 @@ struct base64_data {
   long w;
 
   unsigned total;
+};
+
+// toys/other/blkdiscard.c
+
+struct blkdiscard_data {
+  long o, l;
 };
 
 // toys/other/blkid.c
@@ -277,8 +283,6 @@ struct hexedit_data {
 
 struct hwclock_data {
   char *f;
-
-  int utc;
 };
 
 // toys/other/ionice.c
@@ -373,6 +377,13 @@ struct nsenter_data {
 
 struct oneit_data {
   char *c;
+};
+
+// toys/other/rtcwake.c
+
+struct rtcwake_data {
+  long t, s;
+  char *m, *d;
 };
 
 // toys/other/setfattr.c
@@ -496,11 +507,10 @@ struct bc_data {
 
 struct bootchartd_data {
   char buf[32];
-  long smpl_period_usec;
+  long msec;
   int proc_accounting;
-  int is_login;
 
-  pid_t cur_pid;
+  pid_t pid;
 };
 
 // toys/pending/brctl.c
@@ -542,7 +552,7 @@ struct dd_data {
     unsigned long long offset;
   } in, out;
   unsigned conv, iflag, oflag;
-};;
+};
 
 // toys/pending/dhcp.c
 
@@ -578,7 +588,7 @@ struct dhcp6_data {
 struct dhcpd_data {
     char *iface;
     long port;
-};;
+};
 
 // toys/pending/diff.c
 
@@ -787,7 +797,7 @@ struct more_data {
 // toys/pending/openvt.c
 
 struct openvt_data {
-  unsigned long vt_num;
+  long c;
 };
 
 // toys/pending/readelf.c
@@ -796,9 +806,8 @@ struct readelf_data {
   char *x, *p;
 
   char *elf, *shstrtab, *f;
-  long long shoff, phoff, size;
-  int bits, shnum, shentsize, phentsize;
-  int64_t (*elf_int)(void *ptr, unsigned size);
+  unsigned long long shoff, phoff, size;
+  int bits, endian, shnum, shentsize, phentsize;
 };
 
 // toys/pending/route.c
@@ -810,33 +819,52 @@ struct route_data {
 // toys/pending/sh.c
 
 struct sh_data {
-  char *c;
+  union {
+    struct {
+      char *c;
+    } sh;
+    struct {
+      char *a;
+    } exec;
+  };
 
+  // keep lineno here, we use it to work around a compiler limitation
   long lineno;
-  char **locals, *subshell_env;
-  struct double_list functions;
-  unsigned options, jobcnt, loc_ro, loc_magic;
-  int hfd;  // next high filehandle (>= 10)
+  char *ifs, *isexec;
+  unsigned options, jobcnt;
+  int hfd, pid, bangpid, varslen, shift, cdcount;
+  long long SECONDS;
 
-  // Running jobs.
-  struct sh_job {
-    struct sh_job *next, *prev;
-    unsigned jobno;
+  struct sh_vars {
+    long flags;
+    char *str;
+  } *vars;
 
-    // Every pipeline has at least one set of arguments or it's Not A Thing
-    struct sh_arg {
-      char **v;
-      int c;
-    } pipeline;
+  // Parsed function
+  struct sh_function {
+    char *name;
+    struct sh_pipeline {  // pipeline segments
+      struct sh_pipeline *next, *prev, *end;
+      int count, here, type; // TODO abuse type to replace count during parsing
+      struct sh_arg {
+        char **v;
+        int c;
+      } arg[1];
+    } *pipeline;
+    struct double_list *expect; // should be zero at end of parsing
+  } *functions;
 
-    // null terminated array of running processes in pipeline
-    struct sh_process {
-      struct sh_process *next, *prev;
-      struct arg_list *delete;   // expanded strings
-      int *urd, envlen, pid, exit;  // undo redirects, child PID, exit status
-      struct sh_arg arg;
-    } *procs, *proc;
-  } *jobs, *job;
+// TODO ctrl-Z suspend should stop script
+  struct sh_process {
+    struct sh_process *next, *prev; // | && ||
+    struct arg_list *delete;   // expanded strings
+    // undo redirects, a=b at start, child PID, exit status, has !, job #
+    int *urd, envlen, pid, exit, not, job;
+    long long when; // when job backgrounded/suspended
+    struct sh_arg *raw, arg;
+  } *pp; // currently running process
+
+  struct sh_arg jobs, *arg;  // job list, command line args for $* etc
 };
 
 // toys/pending/stty.c
@@ -984,37 +1012,28 @@ struct useradd_data {
 // toys/pending/vi.c
 
 struct vi_data {
-    char *s;
-    int cur_col;
-    int cur_row;
-    int scr_row;
-    int drawn_row;
-    int drawn_col;
-    unsigned screen_height;
-    unsigned screen_width;
-    int vi_mode;
-    int count0;
-    int count1;
-    int vi_mov_flag;
-    int modified;
-    char vi_reg;
-    char *last_search;
-    int tabstop;
-    int list;
-    struct str_line {
-      int alloc;
-      int len;
-      char *data;
-    } *il;
-    size_t screen; //offset in slices must be higher than cursor
-    size_t cursor; //offset in slices
-    //yank buffer
-    struct yank_buf {
-      char reg;
-      int alloc;
-      char* data;
-    } yank;
+  char *s;
+  int vi_mode, tabstop, list;
+  int cur_col, cur_row, scr_row;
+  int drawn_row, drawn_col;
+  int count0, count1, vi_mov_flag;
+  unsigned screen_height, screen_width;
+  char vi_reg, *last_search;
+  struct str_line {
+    int alloc;
+    int len;
+    char *data;
+  } *il;
+  size_t screen, cursor; //offsets
+  //yank buffer
+  struct yank_buf {
+    char reg;
+    int alloc;
+    char* data;
+  } yank;
 
+  int modified;
+  size_t filesize;
 // mem_block contains RO data that is either original file as mmap
 // or heap allocated inserted data
 //
@@ -1048,10 +1067,6 @@ struct vi_data {
       const char *data;
     } *node;
   } *slices;
-
-  size_t filesize;
-  int fd; //file_handle
-
 };
 
 // toys/pending/wget.c
@@ -1170,7 +1185,7 @@ struct du_data {
 
 struct env_data {
   struct arg_list *u;
-};;
+};
 
 // toys/posix/expand.c
 
@@ -1535,6 +1550,7 @@ extern union global_union {
 	struct tunctl_data tunctl;
 	struct acpi_data acpi;
 	struct base64_data base64;
+	struct blkdiscard_data blkdiscard;
 	struct blkid_data blkid;
 	struct blockdev_data blockdev;
 	struct chrt_data chrt;
@@ -1556,6 +1572,7 @@ extern union global_union {
 	struct modinfo_data modinfo;
 	struct nsenter_data nsenter;
 	struct oneit_data oneit;
+	struct rtcwake_data rtcwake;
 	struct setfattr_data setfattr;
 	struct shred_data shred;
 	struct stat_data stat;

@@ -17,7 +17,7 @@
  * Why --exclude pattern but no --include? tar cvzf a.tgz dir --include '*.txt'
  *
 
-USE_TAR(NEWTOY(tar, "&(restrict)(full-time)(no-recursion)(numeric-owner)(no-same-permissions)(overwrite)(exclude)*(mode):(mtime):(group):(owner):(to-command):o(no-same-owner)p(same-permissions)k(keep-old)c(create)|h(dereference)x(extract)|t(list)|v(verbose)J(xz)j(bzip2)z(gzip)S(sparse)O(to-stdout)m(touch)X(exclude-from)*T(files-from)*C(directory):f(file):a[!txc][!jzJa]", TOYFLAG_USR|TOYFLAG_BIN))
+USE_TAR(NEWTOY(tar, "&(restrict)(full-time)(no-recursion)(numeric-owner)(no-same-permissions)(overwrite)(exclude)*(mode):(mtime):(group):(owner):(to-command):o(no-same-owner)p(same-permissions)k(keep-old)c(create)|h(dereference)x(extract)|t(list)|v(verbose)J(xz)j(bzip2)z(gzip)S(sparse)O(to-stdout)P(absolute-names)m(touch)X(exclude-from)*T(files-from)*C(directory):f(file):a[!txc][!jzJa]", TOYFLAG_USR|TOYFLAG_BIN))
 
 config TAR
   bool "tar"
@@ -38,7 +38,7 @@ config TAR
     --mode MODE      Adjust modes           --mtime TIME  Override timestamps
     --owner NAME     Set file owner to NAME --group NAME  Set file group to NAME
     --sparse         Record sparse files
-    --restrict       All archive contents must extract under one subdirctory
+    --restrict       All archive contents must extract under one subdirectory
     --numeric-owner  Save/use/display uid and gid, not user/group name
     --no-recursion   Don't store directory contents
 */
@@ -179,7 +179,7 @@ static int add_to_tar(struct dirtree *node)
   struct tar_hdr hdr;
   struct passwd *pw = pw;
   struct group *gr = gr;
-  int i, fd =-1;
+  int i, fd = -1, norecurse = FLAG(no_recursion);
   char *name, *lnk, *hname;
 
   if (!dirtree_notdotdot(node)) return 0;
@@ -189,11 +189,15 @@ static int add_to_tar(struct dirtree *node)
   }
 
   i = 1;
-  name = dirtree_path(node, &i);
+  name = hname = dirtree_path(node, &i);
 
   // exclusion defaults to --no-anchored and --wildcards-match-slash
   for (lnk = name; *lnk;) {
-    if (filter(TT.excl, lnk)) goto done;
+    if (filter(TT.excl, lnk)) {
+      norecurse++;
+
+      goto done;
+    }
     while (*lnk && *lnk!='/') lnk++;
     while (*lnk=='/') lnk++;
   }
@@ -202,7 +206,7 @@ static int add_to_tar(struct dirtree *node)
   if (S_ISDIR(st->st_mode) && name[i-1] != '/') strcat(name, "/");
 
   // remove leading / and any .. entries from saved name
-  for (hname = name; *hname == '/'; hname++);
+  if (!FLAG(P)) while (*hname == '/') hname++;
   for (lnk = hname;;) {
     if (!(lnk = strstr(lnk, ".."))) break;
     if (lnk == hname || lnk[-1] == '/') {
@@ -246,7 +250,8 @@ static int add_to_tar(struct dirtree *node)
       i = 1;
     } else {
       // first time we've seen it. Store as normal file, but remember it.
-      if (!(TT.hlc&255)) TT.hlx = xrealloc(TT.hlx, TT.hlc+256);
+      if (!(TT.hlc&255))
+        TT.hlx = xrealloc(TT.hlx, sizeof(*TT.hlx)*(TT.hlc+256));
       TT.hlx[TT.hlc].arg = xstrdup(hname);
       TT.hlx[TT.hlc].ino = st->st_ino;
       TT.hlx[TT.hlc].dev = st->st_dev;
@@ -270,7 +275,7 @@ static int add_to_tar(struct dirtree *node)
     }
     if (strlen(lnk) > sizeof(hdr.link)) write_longname(lnk, 'K');
     strncpy(hdr.link, lnk, sizeof(hdr.link));
-    if (i) free(lnk);
+    if (i==2) free(lnk);
   } else if (S_ISREG(st->st_mode)) {
     hdr.type = '0';
     ITOO(hdr.size, st->st_size);
@@ -338,7 +343,7 @@ static int add_to_tar(struct dirtree *node)
   itoo(hdr.chksum, sizeof(hdr.chksum)-1, tar_cksum(&hdr));
   hdr.chksum[7] = ' ';
 
-  if (FLAG(v)) dprintf(TT.fd ? 2 : 1, "%s\n", hname);
+  if (FLAG(v)) dprintf((TT.fd==1) ? 2 : 1, "%s\n", hname);
 
   // Write header and data to archive
   xwrite(TT.fd, &hdr, 512);
@@ -374,7 +379,7 @@ static int add_to_tar(struct dirtree *node)
 done:
   free(name);
 
-  return (DIRTREE_RECURSE|(FLAG(h)?DIRTREE_SYMFOLLOW:0))*!FLAG(no_recursion);
+  return (DIRTREE_RECURSE|(FLAG(h)?DIRTREE_SYMFOLLOW:0))*!norecurse;
 }
 
 static void wsettime(char *s, long long sec)
@@ -495,8 +500,9 @@ static void extract_to_disk(void)
         return perror_msg("can't link '%s' -> '%s'", name, TT.hdr.link_target);
     // write contents
     } else {
-      int fd = xcreate(name, O_WRONLY|O_CREAT|(FLAG(overwrite)?O_TRUNC:O_EXCL),
-        WARN_ONLY|(ala & 07777));
+      int fd = xcreate(name,
+        WARN_ONLY|O_WRONLY|O_CREAT|(FLAG(overwrite)?O_TRUNC:O_EXCL),
+        ala & 07777);
       if (fd != -1) sendfile_sparse(fd);
       else skippy(TT.hdr.size);
     }
@@ -589,7 +595,7 @@ static void unpack_tar(char *first)
       else if (tar.type == 'L') alloread(&TT.hdr.name, TT.hdr.size);
       else if (tar.type == 'x') {
         char *p, *buf = 0;
-        int i, len, n;
+        int i, len, n = 0;
 
         // Posix extended record "LEN NAME=VALUE\n" format
         alloread(&buf, TT.hdr.size);
@@ -600,7 +606,7 @@ static void unpack_tar(char *first)
             break;
           }
           p[len-1] = 0;
-          if (i == 2) {
+          if (n) {
             TT.hdr.name = xstrdup(p+n);
             break;
           }

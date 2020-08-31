@@ -225,8 +225,8 @@ static void do_regular_file(int fd, char *name)
 
   // https://www.w3.org/Graphics/GIF/spec-gif89a.txt
   } else if (len>16 && (strstart(&s, "GIF87a") || strstart(&s, "GIF89a")))
-    xprintf("GIF image data, %d x %d\n",
-      (int)peek_le(s, 2), (int)peek_le(s+8, 2));
+    xprintf("GIF image data, version %3.3s, %d x %d\n",
+      s-3, (int)peek_le(s, 2), (int)peek_le(s+2, 2));
 
   // TODO: parsing JPEG for width/height is harder than GIF or PNG.
   else if (len>32 && !memcmp(toybuf, "\xff\xd8", 2)) xputs("JPEG image data");
@@ -263,6 +263,12 @@ static void do_regular_file(int fd, char *name)
 
     xprintf("Zip archive data");
     if (ver) xprintf(", requires at least v%d.%d to extract", ver/10, ver%10);
+    xputc('\n');
+  } else if (len>9 && strstart(&s, "7z\xbc\xaf\x27\x1c")) {
+    int ver = toybuf[6]*10+toybuf[7];
+
+    xprintf("7-zip archive data");
+    if (ver) xprintf(", version %d.%d", ver/10, ver%10);
     xputc('\n');
   } else if (len>4 && strstart(&s, "BZh") && isdigit(*s))
     xprintf("bzip2 compressed data, block size = %c00k\n", *s);

@@ -70,6 +70,8 @@
 #define USE_BASENAME(...) __VA_ARGS__
 #define CFG_BC 0
 #define USE_BC(...)
+#define CFG_BLKDISCARD 0
+#define USE_BLKDISCARD(...)
 #define CFG_BLKID 0
 #define USE_BLKID(...)
 #define CFG_BLOCKDEV 0
@@ -118,8 +120,8 @@
 #define USE_COMM(...) __VA_ARGS__
 #define CFG_COUNT 0
 #define USE_COUNT(...)
-#define CFG_CPIO 0
-#define USE_CPIO(...)
+#define CFG_CPIO 1
+#define USE_CPIO(...) __VA_ARGS__
 #define CFG_CP_PRESERVE 1
 #define USE_CP_PRESERVE(...) __VA_ARGS__
 #define CFG_CP 1
@@ -446,8 +448,8 @@
 #define USE_PMAP(...)
 #define CFG_PRINTENV 0
 #define USE_PRINTENV(...)
-#define CFG_PRINTF 0
-#define USE_PRINTF(...)
+#define CFG_PRINTF 1
+#define USE_PRINTF(...) __VA_ARGS__
 #define CFG_PS 0
 #define USE_PS(...)
 #define CFG_PWDX 0
@@ -482,6 +484,8 @@
 #define USE_RM(...) __VA_ARGS__
 #define CFG_ROUTE 0
 #define USE_ROUTE(...)
+#define CFG_RTCWAKE 0
+#define USE_RTCWAKE(...)
 #define CFG_RUNCON 0
 #define USE_RUNCON(...)
 #define CFG_SED 1
