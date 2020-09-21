@@ -347,6 +347,7 @@ int stridx(char *haystack, char needle)
 }
 
 // Convert utf8 sequence to a unicode wide character
+// returns bytes consumed, or -1 if err, or -2 if need more data.
 int utf8towc(wchar_t *wc, char *str, unsigned len)
 {
   unsigned result, mask, first;
@@ -435,6 +436,29 @@ int unescape(char c)
   return (idx == -1) ? 0 : to[idx];
 }
 
+// parse next character advancing pointer. echo requires leading 0 in octal esc
+int unescape2(char **c, int echo)
+{
+  int idx = *((*c)++), i, off;
+
+  if (idx != '\\' || !**c) return idx;
+  if (**c == 'c') return 31&*(++*c);
+  for (i = 0; i<4; i++) {
+    if (sscanf(*c, (char *[]){"0%3o%n"+!echo, "x%2x%n", "u%4x%n", "U%6x%n"}[i],
+        &idx, &off))
+    {
+      *c += off;
+
+      return idx;
+    }
+  }
+
+  if (-1 == (idx = stridx("\\abeEfnrtv'\"?0", **c))) return '\\';
+  ++*c;
+
+  return "\\\a\b\033\033\f\n\r\t\v'\"?"[idx];
+}
+
 // If string ends with suffix return pointer to start of suffix in string,
 // else NULL
 char *strend(char *str, char *suffix)
@@ -472,20 +496,16 @@ off_t fdlength(int fd)
 {
   struct stat st;
   off_t base = 0, range = 1, expand = 1, old;
+  unsigned long long size;
 
   if (!fstat(fd, &st) && S_ISREG(st.st_mode)) return st.st_size;
 
   // If the ioctl works for this, return it.
-  // TODO: is blocksize still always 512, or do we stat for it?
-  // unsigned int size;
-  // if (ioctl(fd, BLKGETSIZE, &size) >= 0) return size*512L;
+  if (get_block_device_size(fd, &size)) return size;
 
   // If not, do a binary search for the last location we can read.  (Some
   // block devices don't do BLKGETSIZE right.)  This should probably have
   // a CONFIG option...
-
-  // If not, do a binary search for the last location we can read.
-
   old = lseek(fd, 0, SEEK_CUR);
   do {
     char temp;
@@ -870,18 +890,15 @@ void exit_signal(int sig)
 // adds the handlers to a list, to be called in order.
 void sigatexit(void *handler)
 {
+  struct arg_list *al = 0;
+
   xsignal_all_killers(handler ? exit_signal : SIG_DFL);
-
   if (handler) {
-    struct arg_list *al = xmalloc(sizeof(struct arg_list));
-
+    al = xmalloc(sizeof(struct arg_list));
     al->next = toys.xexit;
     al->arg = handler;
-    toys.xexit = al;
-  } else {
-    llist_traverse(toys.xexit, free);
-    toys.xexit = 0;
-  }
+  } else llist_traverse(toys.xexit, free);
+  toys.xexit = al;
 }
 
 // Output a nicely formatted 80-column table of all the signals.

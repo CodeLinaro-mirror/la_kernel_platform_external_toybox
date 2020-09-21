@@ -48,6 +48,7 @@ CONFIG_TOYBOX=y
 # CONFIG_BASE64 is not set
 CONFIG_BASENAME=y
 # CONFIG_BC is not set
+# CONFIG_BLKDISCARD is not set
 # CONFIG_BLKID is not set
 # CONFIG_BLOCKDEV is not set
 # CONFIG_BOOTCHARTD is not set
@@ -72,7 +73,7 @@ CONFIG_CHMOD=y
 CONFIG_CMP=y
 CONFIG_COMM=y
 # CONFIG_COUNT is not set
-# CONFIG_CPIO is not set
+CONFIG_CPIO=y
 CONFIG_CP_PRESERVE=y
 CONFIG_CP=y
 # CONFIG_CRC32 is not set
@@ -236,7 +237,7 @@ CONFIG_PATCH=y
 # CONFIG_PKILL is not set
 # CONFIG_PMAP is not set
 # CONFIG_PRINTENV is not set
-# CONFIG_PRINTF is not set
+CONFIG_PRINTF=y
 # CONFIG_PS is not set
 # CONFIG_PWDX is not set
 CONFIG_PWD=y
@@ -254,6 +255,7 @@ CONFIG_RMDIR=y
 # CONFIG_RMMOD is not set
 CONFIG_RM=y
 # CONFIG_ROUTE is not set
+# CONFIG_RTCWAKE is not set
 # CONFIG_RUNCON is not set
 CONFIG_SED=y
 # CONFIG_SENDEVENT is not set

@@ -224,7 +224,7 @@ void xexec(char **argv)
 //           If -1, replace with pipe handle connected to stdin/stdout.
 //           NULL treated as {0, 1}, I.E. leave stdin/stdout as is
 // return: pid of child process
-pid_t xpopen_setup(char **argv, int *pipes, void (*callback)(void))
+pid_t xpopen_setup(char **argv, int *pipes, void (*callback)(char **argv))
 {
   int cestnepasun[4], pid;
 
@@ -269,7 +269,7 @@ pid_t xpopen_setup(char **argv, int *pipes, void (*callback)(void))
         close(pipes[1]);
       }
     }
-    if (callback) callback();
+    if (callback) callback(argv);
     if (argv) xexec(argv);
 
     // In fork() case, force recursion because we know it's us.
@@ -287,6 +287,7 @@ pid_t xpopen_setup(char **argv, int *pipes, void (*callback)(void))
       // setting high bit of argv[0][0] to let new process know
       **toys.argv |= 0x80;
       execv(s, toys.argv);
+      if ((s = getenv("_"))) execv(s, toys.argv);
       perror_msg_raw(s);
 
       _exit(127);
@@ -380,7 +381,7 @@ int xcreate_stdio(char *path, int flags, int mode)
 {
   int fd = open(path, (flags^O_CLOEXEC)&~WARN_ONLY, mode);
 
-  if (fd == -1) ((mode&WARN_ONLY) ? perror_msg_raw : perror_exit_raw)(path);
+  if (fd == -1) ((flags&WARN_ONLY) ? perror_msg_raw : perror_exit_raw)(path);
   return fd;
 }
 
@@ -813,29 +814,6 @@ void xpidfile(char *name)
   close(fd);
 }
 
-// Return bytes copied from in to out. If bytes <0 copy all of in to out.
-// If consuemd isn't null, amount read saved there (return is written or error)
-long long sendfile_len(int in, int out, long long bytes, long long *consumed)
-{
-  long long total = 0, len;
-
-  if (consumed) *consumed = 0;
-  if (in<0) return 0;
-  while (bytes != total) {
-    len = bytes-total;
-    if (bytes<0 || len>sizeof(libbuf)) len = sizeof(libbuf);
-
-    len = read(in, libbuf, len);
-    if (!len && errno==EAGAIN) continue;
-    if (len<1) break;
-    if (consumed) *consumed += len;
-    if (writeall(out, libbuf, len) != len) return -1;
-    total += len;
-  }
-
-  return total;
-}
-
 // error_exit if we couldn't copy all bytes
 long long xsendfile_len(int in, int out, long long bytes)
 {
@@ -1072,8 +1050,21 @@ char *xgetline(FILE *fp, int *len)
   if (1>(ll = getline(&new, &linelen, fp))) {
     if (errno) perror_msg("getline");
     new = 0;
-  } else if (new[linelen-1] == '\n') new[--linelen] = 0;
+  } else if (new[ll-1] == '\n') new[--ll] = 0;
   if (len) *len = ll;
 
   return new;
+}
+
+time_t xmktime(struct tm *tm, int utc)
+{
+  char *old_tz = utc ? xtzset("UTC0") : 0;
+  time_t result;
+
+  if ((result = mktime(tm)) < 0) error_exit("mktime");
+  if (utc) {
+    free(xtzset(old_tz));
+    free(old_tz);
+  }
+  return result;
 }
