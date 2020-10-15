@@ -83,20 +83,21 @@ error:
 
 char *dirtree_path(struct dirtree *node, int *plen)
 {
+  struct dirtree *nn;
   char *path;
-  int len;
+  int ii, ll, len;
 
-  if (!node) {
-    path = xmalloc(*plen);
-    *plen = 0;
-    return path;
-  }
-
-  len = (plen ? *plen : 0)+strlen(node->name)+1;
-  path = dirtree_path(node->parent, &len);
-  if (len && path[len-1] != '/') path[len++]='/';
-  len = stpcpy(path+len, node->name) - path;
+  if (!node->parent) return xstrdup(node->name);
+  ll = len = plen ? *plen : 0;
+  for (nn = node; nn; nn = nn->parent)
+    if ((ii = strlen(nn->name))) len += ii+1-(nn->name[ii-1]=='/');
   if (plen) *plen = len;
+  path = xmalloc(len)+len-ll;
+  for (nn = node; nn; nn = nn->parent) if ((len = strlen(nn->name))) {
+    *--path = '/'*(nn != node);
+    if (nn->name[len-1]=='/') len--;
+    memcpy(path -= len, nn->name, len);
+  }
 
   return path;
 }
@@ -121,11 +122,11 @@ struct dirtree *dirtree_handle_callback(struct dirtree *new,
   flags = callback(new);
 
   if (S_ISDIR(new->st.st_mode) && (flags & (DIRTREE_RECURSE|DIRTREE_COMEAGAIN)))
-    flags = dirtree_recurse(new, callback,
+    flags = dirtree_recurse(new, callback, !*new->name ? AT_FDCWD :
       openat(dirtree_parentfd(new), new->name, O_CLOEXEC), flags);
 
-  // If this had children, it was callback's job to free them already.
-  if (!(flags & DIRTREE_SAVE)) {
+  // Free node that didn't request saving and has no saved children.
+  if (!new->child && !(flags & DIRTREE_SAVE)) {
     free(new);
     new = 0;
   }
