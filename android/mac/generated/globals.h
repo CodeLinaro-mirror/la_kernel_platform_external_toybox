@@ -392,6 +392,13 @@ struct setfattr_data {
   char *x, *v, *n;
 };
 
+// toys/other/sha3sum.c
+
+struct sha3sum_data {
+  long a;
+  unsigned long long rc[24];
+};
+
 // toys/other/shred.c
 
 struct shred_data {
@@ -457,6 +464,14 @@ struct watch_data {
   int n;
 
   pid_t pid, oldpid;
+};
+
+// toys/other/watchdog.c
+
+struct watchdog_data {
+  long T, t;
+
+  int fd;
 };
 
 // toys/other/xxd.c
@@ -1069,14 +1084,6 @@ struct vi_data {
   } *slices;
 };
 
-// toys/pending/watchdog.c
-
-struct watchdog_data {
-  long T, t;
-
-  int fd;
-};
-
 // toys/pending/wget.c
 
 struct wget_data {
@@ -1582,6 +1589,7 @@ extern union global_union {
 	struct oneit_data oneit;
 	struct rtcwake_data rtcwake;
 	struct setfattr_data setfattr;
+	struct sha3sum_data sha3sum;
 	struct shred_data shred;
 	struct stat_data stat;
 	struct swapon_data swapon;
@@ -1590,6 +1598,7 @@ extern union global_union {
 	struct timeout_data timeout;
 	struct truncate_data truncate;
 	struct watch_data watch;
+	struct watchdog_data watchdog;
 	struct xxd_data xxd;
 	struct arp_data arp;
 	struct arping_data arping;
@@ -1639,7 +1648,6 @@ extern union global_union {
 	struct traceroute_data traceroute;
 	struct useradd_data useradd;
 	struct vi_data vi;
-	struct watchdog_data watchdog;
 	struct wget_data wget;
 	struct basename_data basename;
 	struct cal_data cal;
