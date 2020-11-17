@@ -2614,6 +2614,17 @@
 #undef FLAG_b
 #endif
 
+// sha3sum   bSa#<128>512=224
+#undef OPTSTR_sha3sum
+#define OPTSTR_sha3sum "bSa#<128>512=224"
+#ifdef CLEANUP_sha3sum
+#undef CLEANUP_sha3sum
+#undef FOR_sha3sum
+#undef FLAG_a
+#undef FLAG_S
+#undef FLAG_b
+#endif
+
 // shift   >1
 #undef OPTSTR_shift
 #define OPTSTR_shift ">1"
@@ -2717,6 +2728,14 @@
 #undef FLAG_T
 #undef FLAG_S
 #undef FLAG_g
+#endif
+
+// source   <1
+#undef OPTSTR_source
+#define OPTSTR_source "<1"
+#ifdef CLEANUP_source
+#undef CLEANUP_source
+#undef FOR_source
 #endif
 
 // split   >2a#<1=2>9b#<1l#<1[!bl]
@@ -5714,6 +5733,15 @@
 #define FLAG_b (1<<2)
 #endif
 
+#ifdef FOR_sha3sum
+#ifndef TT
+#define TT this.sha3sum
+#endif
+#define FLAG_a (FORCED_FLAG<<0)
+#define FLAG_S (FORCED_FLAG<<1)
+#define FLAG_b (FORCED_FLAG<<2)
+#endif
+
 #ifdef FOR_shift
 #ifndef TT
 #define TT this.shift
@@ -5803,6 +5831,12 @@
 #define FLAG_T (1<<17)
 #define FLAG_S (1<<18)
 #define FLAG_g (1<<19)
+#endif
+
+#ifdef FOR_source
+#ifndef TT
+#define TT this.source
+#endif
 #endif
 
 #ifdef FOR_split

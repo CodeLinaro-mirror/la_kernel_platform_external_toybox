@@ -27,6 +27,7 @@
  * TODO: getuid() vs geteuid()
  * TODO: test that $PS1 color changes work without stupid \[ \] hack
  * TODO: Handle embedded NUL bytes in the command line? (When/how?)
+ * TODO: set -e -u -o pipefail, shopt -s nullglob
  *
  * bash man page:
  * control operators || & && ; ;; ;& ;;& ( ) | |& <newline>
@@ -45,6 +46,8 @@ USE_SH(NEWTOY(exec, "^cla:", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(exit, 0, TOYFLAG_NOFORK))
 USE_SH(NEWTOY(export, "np", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(shift, ">1", TOYFLAG_NOFORK))
+USE_SH(NEWTOY(source, "<1", TOYFLAG_NOFORK))
+USE_SH(OLDTOY(., source, TOYFLAG_NOFORK))
 USE_SH(NEWTOY(unset, "fvn", TOYFLAG_NOFORK))
 
 USE_SH(NEWTOY(sh, "(noediting)(noprofile)(norc)sc:i", TOYFLAG_BIN))
@@ -159,6 +162,15 @@ config SHIFT
 
     Skip N (default 1) positional parameters, moving $1 and friends along the list.
     Does not affect $0.
+
+config SOURCE
+  bool
+  default n
+  depends on SH
+  help
+    usage: source FILE [ARGS...]
+
+    Read FILE and execute commands. Any ARGS become positional parameters.
 */
 
 #define FOR_sh
@@ -249,21 +261,23 @@ static void arg_add(struct sh_arg *arg, char *data)
 }
 
 // add argument to an arg_list
-static void push_arg(struct arg_list **list, char *arg)
+static char *push_arg(struct arg_list **list, char *arg)
 {
   struct arg_list *al;
 
-  if (!list) return;
-  al = xmalloc(sizeof(struct arg_list));
-  al->next = *list;
-  al->arg = arg;
-  *list = al;
+  if (list) {
+    al = xmalloc(sizeof(struct arg_list));
+    al->next = *list;
+    al->arg = arg;
+    *list = al;
+  }
+
+  return arg;
 }
 
 static void arg_add_del(struct sh_arg *arg, char *data,struct arg_list **delete)
 {
-  push_arg(delete, data);
-  arg_add(arg, data);
+  arg_add(arg, push_arg(delete, data));
 }
 
 // return length of valid variable name
@@ -782,8 +796,9 @@ int getutf8(char *s, int len, int *cc)
 
 #define WILD_SHORT 1 // else longest match
 #define WILD_CASE  2 // case insensitive
+#define WILD_ANY   4 // advance through pattern instead of str
 // Returns length of str matched by pattern, or -1 if not all pattern consumed
-static int wildcard_match(char *str, int len, char *pattern, int plen,
+static int wildcard_matchlen(char *str, int len, char *pattern, int plen,
   struct sh_arg *deck, int flags)
 {
   struct sh_arg ant = {0};    // stack: of str offsets
@@ -792,6 +807,7 @@ static int wildcard_match(char *str, int len, char *pattern, int plen,
 
   // Loop through wildcards in pattern.
   for (ss = pp = dd = 0; ;) {
+    if ((flags&WILD_ANY) && best!=-1) break;
 
     // did we consume pattern?
     if (pp==plen) {
@@ -813,7 +829,7 @@ static int wildcard_match(char *str, int len, char *pattern, int plen,
     } else {
       c = pattern[pp++];
       dd++;
-      if (c=='?') {
+      if (c=='?' || ((flags&WILD_ANY) && c=='*')) {
         ss += (i = getutf8(str+ss, len-ss, 0));
         if (i) continue;
       } else if (c=='*') {
@@ -837,7 +853,7 @@ static int wildcard_match(char *str, int len, char *pattern, int plen,
           } else if (not^(i==c)) break;
         }
         if (i) {
-          pp = (long)deck->v[dd++];
+          pp = 1+(long)deck->v[dd++];
 
           continue;
         }
@@ -850,8 +866,14 @@ static int wildcard_match(char *str, int len, char *pattern, int plen,
       }
     }
 
-    // match failure, pop retry stack or return failure
-    // TODO: seek to next | in paren
+    // match failure
+    if (flags&WILD_ANY) {
+      ss = 0;
+      if (plen==pp) break;
+      continue;
+    }
+
+    // pop retry stack or return failure (TODO: seek to next | in paren)
     while (ant.c) {
       if ((c = pattern[(long)deck->v[--dd]])=='*') {
         if (len<(ss = (long)ant.v[ant.c-2]+(long)++ant.v[ant.c-1])) ant.c -= 2;
@@ -869,6 +891,14 @@ static int wildcard_match(char *str, int len, char *pattern, int plen,
   return best;
 }
 
+static int wildcard_match(char *s, char *p, struct sh_arg *deck, int flags)
+{
+  return wildcard_matchlen(s, strlen(s), p, strlen(p), deck, flags);
+}
+
+
+// TODO: test that * matches ""
+
 // skip to next slash in wildcard path, passing count active ranges.
 // start at pattern[off] and deck[*idx], return pattern pos and update *idx
 char *wildcard_path(char *pattern, int off, struct sh_arg *deck, int *idx,
@@ -879,10 +909,10 @@ char *wildcard_path(char *pattern, int off, struct sh_arg *deck, int *idx,
 
   // Skip [] and nested () ranges within deck until / or NUL
   for (p = old = pattern+off;; p++) {
-
     if (!*p) return p;
     while (*p=='/') {
       old = p++;
+      if (j && !count) return old;
       j = 0;
     }
 
@@ -890,7 +920,7 @@ char *wildcard_path(char *pattern, int off, struct sh_arg *deck, int *idx,
     if (*idx<deck->c && p-pattern == (long)deck->v[*idx]) {
       if (!j++ && !count--) return old;
       ++*idx;
-      if (*p=='[') p = deck->v[(*idx)++];
+      if (*p=='[') p = pattern+(long)deck->v[(*idx)++];
       else if (*p=='(') while (*++p) if (p-pattern == (long)deck->v[*idx]) {
         ++*idx;
         if (*p == ')') {
@@ -914,11 +944,13 @@ int do_wildcard_files(struct dirtree *node)
   int lvl, ll = 0, ii = 0, rc;
   struct sh_arg ant;
 
+  // Top level entry has no pattern in it
   if (!node->parent) return DIRTREE_RECURSE;
 
   // Find active pattern range
-  for (nn = node->parent->parent; nn; nn = nn->parent) ii++;
-  pattern = wildcard_path(TT.wcpat, 0, TT.wcdeck, &ll, ii)+1;
+  for (nn = node->parent; nn; nn = nn->parent) if (nn->parent) ii++;
+  pattern = wildcard_path(TT.wcpat, 0, TT.wcdeck, &ll, ii);
+  while (*pattern=='/') pattern++;
   lvl = ll;
   patend = wildcard_path(TT.wcpat, pattern-TT.wcpat, TT.wcdeck, &ll, 1);
 
@@ -932,22 +964,30 @@ int do_wildcard_files(struct dirtree *node)
   ant.c = ll-lvl;
   ant.v = TT.wcdeck->v+lvl;
   for (ii = 0; ii<ant.c; ii++) TT.wcdeck->v[lvl+ii] -= pattern-TT.wcpat;
-  rc = wildcard_match(node->name, strlen(node->name), pattern, patend-pattern,
-    &ant, 0);
+  rc = wildcard_matchlen(node->name, strlen(node->name), pattern,
+    patend-pattern, &ant, 0);
   for (ii = 0; ii<ant.c; ii++) TT.wcdeck->v[lvl+ii] += pattern-TT.wcpat;
+
+  // Return failure or save exact match.
   if (rc<0 || node->name[rc]) return 0;
-
-  // We matched: recurse or save
   if (!*patend) return DIRTREE_SAVE;
-  if (!*wildcard_path(TT.wcpat, patend-TT.wcpat, TT.wcdeck, &ll, 0)) {
-    pattern = xmprintf("%s%s", node->name, patend);
-    rc = faccessat(dirtree_parentfd(node), pattern, F_OK, AT_SYMLINK_NOFOLLOW);
-    free(pattern);
 
-    return DIRTREE_SAVE*!rc;
-  }
+  // Are there more wildcards to test children against?
+  if (TT.wcdeck->c!=ll) return DIRTREE_RECURSE;
 
-  return DIRTREE_RECURSE;
+  // No more wildcards: check for child and return failure if it isn't there.
+  pattern = xmprintf("%s%s", node->name, patend);
+  rc = faccessat(dirtree_parentfd(node), pattern, F_OK, AT_SYMLINK_NOFOLLOW);
+  free(pattern);
+  if (rc) return 0;
+
+  // Save child and self. (Child could be trailing / but only one saved.)
+  while (*patend=='/' && patend[1]) patend++;
+  node->child = xzalloc(sizeof(struct dirtree)+1+strlen(patend));
+  node->child->parent = node;
+  strcpy(node->child->name, patend);
+
+  return DIRTREE_SAVE;
 }
 
 // Record active wildcard chars in output string
@@ -997,11 +1037,12 @@ static void collect_wildcards(char *new, long oo, struct sh_arg *deck)
 
   // complete [range], discard wildcards within, add [, fall through to add ]
   else if (cc == ']' && (bracket = *vv>>16)) {
+
     // don't end range yet for [] or [^]
     if (bracket+1 == oo || (bracket+2 == oo && strchr("!^", new[oo-1]))) return;
     while (deck->c>1 && vv[deck->c-1]>=bracket) deck->c--;
     *vv &= 65535;
-    arg_add(deck, (void *)--bracket);
+    arg_add(deck, (void *)bracket);
 
   // Not a wildcard
   } else {
@@ -1020,25 +1061,23 @@ static void wildcard_add_files(struct sh_arg *arg, char *pattern,
   struct sh_arg *deck, struct arg_list **delete)
 {
   struct dirtree *dt;
-  char *p, *pp;
+  char *pp;
   int ll = 0;
 
   // fast path: when no wildcards, add pattern verbatim
   collect_wildcards("", 0, deck);
   if (!deck->c) return arg_add(arg, pattern);
 
-  // Find leading patternless path (if any)
-  p = wildcard_path(TT.wcpat = pattern, 0, TT.wcdeck = deck, &ll, 0);
-  if ((pp = (p==pattern) ? 0 : xstrndup(pattern, p-pattern))) p++;
-
-  // Traverse. If no match, save pattern verbatim.
+  // Traverse starting with leading patternless path.
+  pp = wildcard_path(TT.wcpat = pattern, 0, TT.wcdeck = deck, &ll, 0);
+  pp = (pp==pattern) ? 0 : xstrndup(pattern, pp-pattern);
   dt = dirtree_flagread(pp, DIRTREE_STATLESS|DIRTREE_SYMFOLLOW,
     do_wildcard_files);
   free(pp);
   deck->c = 0;
-  if (!dt) return arg_add(arg, pattern);
 
-  // traverse dirtree via child and parent pointers, consuming/freeing nodes
+  // If no match save pattern, else free tree saving each path found.
+  if (!dt) return arg_add(arg, pattern);
   while (dt) {
     while (dt->child) dt = dt->child;
     arg_add(arg, dirtree_path(dt, 0));
@@ -1052,18 +1091,23 @@ static void wildcard_add_files(struct sh_arg *arg, char *pattern,
 }
 
 // Copy string until } including escaped }
-char *slashcopy(char *s, char c, struct sh_arg *deck)
+// if deck collect wildcards, and store terminator at deck->v[deck->c]
+char *slashcopy(char *s, char *c, struct sh_arg *deck)
 {
   char *ss;
-  int ii, jj;
+  long ii, jj;
 
-  for (ii = 0; s[ii] != c; ii++) if (s[ii] == '\\') ii++;
+  for (ii = 0; !strchr(c, s[ii]); ii++) if (s[ii] == '\\') ii++;
   ss = xmalloc(ii+1);
-  for (ii = jj = 0; s[jj] != c; ii++)
+  for (ii = jj = 0; !strchr(c, s[jj]); ii++)
     if ('\\'==(ss[ii] = s[jj++])) ss[ii] = s[jj++];
     else if (deck) collect_wildcards(ss, ii, deck);
   ss[ii] = 0;
-  if (deck) collect_wildcards("", 0, deck);
+  if (deck) {
+    arg_add(deck, 0);
+    deck->v[--deck->c] = (void *)jj;
+    collect_wildcards("", 0, deck);
+  }
 
   return ss;
 }
@@ -1220,18 +1264,15 @@ dprintf(2, "TODO: do math for %.*s\n", kk, s);
         else if (cc == '#') {  // TODO ${#x[@]}
           dd = !!strchr("@*", *ss);  // For ${#@} or ${#*} do normal ${#}
           ifs = getvar_special(ss-dd, jj, &kk, delete) ? : "";
-          if (!dd) push_arg(delete, ifs = xmprintf("%ld", strlen(ifs)));
+          if (!dd) push_arg(delete, ifs = xmprintf("%zu", strlen(ifs)));
         // ${!@} ${!@Q} ${!x} ${!x@} ${!x@Q} ${!x#} ${!x[} ${!x[*]}
         } else if (cc == '!') {  // TODO: ${var[@]} array
 
           // special case: normal varname followed by @} or *} = prefix list
           if (ss[jj] == '*' || (ss[jj] == '@' && !isalpha(ss[jj+1]))) {
-            for (slice++, kk = 0; kk<TT.varslen; kk++) {
-              if (!strncmp(s = TT.vars[kk].str, ss, jj)) {
-                arg_add(&aa, s = xstrndup(s, stridx(s, '=')));
-                push_arg(delete, s);
-              }
-            }
+            for (slice++, kk = 0; kk<TT.varslen; kk++)
+              if (!strncmp(s = TT.vars[kk].str, ss, jj))
+                arg_add(&aa, push_arg(delete, s = xstrndup(s, stridx(s, '='))));
             if (aa.c) push_arg(delete, (void *)aa.v);
 
           // else dereference to get new varname, discarding if none, check err
@@ -1317,14 +1358,15 @@ barf:
         dd = slice[xx = (*slice == ':')];
         if (!ifs || (xx && !*ifs)) {
           if (strchr("-?=", dd)) { // - use default = assign default ? error
-            push_arg(delete, ifs = slashcopy(slice+xx+1, '}', 0));
+            push_arg(delete, ifs = slashcopy(slice+xx+1, "}", 0));
             if (dd == '?' || (dd == '=' &&
               !(setvar(s = xmprintf("%.*s=%s", (int)(slice-ss), ss, ifs)))))
                 goto barf;
           }
+        } else if (dd == '-'); // NOP when ifs not empty
         // use alternate value
-        } else if (dd == '+')
-          push_arg(delete, ifs = slashcopy(slice+xx+1, '}', 0));
+        else if (dd == '+')
+          push_arg(delete, ifs = slashcopy(slice+xx+1, "}", 0));
         else if (xx) { // ${x::}
           long long la, lb, lc;
 
@@ -1360,16 +1402,99 @@ barf:
             for (dd = 0; dd<lb ; dd++) if (!(ifs[dd] = ifs[dd+la])) break;
             ifs[dd] = 0;
           }
-        // ${x#y} remove shortest prefix ${x##y} remove longest prefix
         } else if (strchr("#%^,", *slice)) {
           struct sh_arg wild = {0};
+          char buf[8];
 
-          s = slashcopy(slice+(xx = slice[1]==*slice)+1, '}', &wild);
-          dd = wildcard_match(ifs, strlen(ifs), s, strlen(s), &wild,
-            WILD_SHORT*!xx);
+          s = slashcopy(slice+(xx = slice[1]==*slice)+1, "}", &wild);
+
+          // ${x^pat} ${x^^pat} uppercase ${x,} ${x,,} lowercase (no pat = ?)
+          if (strchr("^,", *slice)) {
+            for (ss = ifs; *ss; ss += dd) {
+              dd = getutf8(ss, 4, &jj);
+              if (!*s || 0<wildcard_match(ss, s, &wild, WILD_ANY)) {
+                ll = ((*slice=='^') ? towupper : towlower)(jj);
+
+                // Of COURSE unicode case switch can change utf8 encoding length
+                // Lower case U+0069 becomes u+0130 in turkish.
+                // Greek U+0390 becomes 3 characters TODO test this
+                if (ll != jj) {
+                  yy = ss-ifs;
+                  if (!*delete || (*delete)->arg!=ifs)
+                    push_arg(delete, ifs = xstrdup(ifs));
+                  if (dd != (ll = wctoutf8(buf, ll))) {
+                    if (dd<ll)
+                      ifs = (*delete)->arg = xrealloc(ifs, strlen(ifs)+1+dd-ll);
+                    memmove(ifs+yy+dd-ll, ifs+yy+ll, strlen(ifs+yy+ll)+1);
+                  }
+                  memcpy(ss = ifs+yy, buf, dd = ll);
+                }
+              }
+              if (!xx) break;
+            }
+          // ${x#y} remove shortest prefix ${x##y} remove longest prefix
+          } else if (*slice=='#') {
+            if (0<(dd = wildcard_match(ifs, s, &wild, WILD_SHORT*!xx)))
+              ifs += dd;
+          // ${x%y} ${x%%y} suffix
+          } else if (*slice=='%') {
+            for (ss = ifs+strlen(ifs), yy = -1; ss>=ifs; ss--) {
+              if (0<(dd = wildcard_match(ss, s, &wild, WILD_SHORT*xx))&&!ss[dd])
+              {
+                yy = ss-ifs;
+                if (!xx) break;
+              }
+            }
+
+            if (yy != -1) {
+              if (*delete && (*delete)->arg==ifs) ifs[yy] = 0;
+              else push_arg(delete, ifs = xstrndup(ifs, yy));
+            }
+          }
           free(s);
           free(wild.v);
-          if (dd>0) ifs += dd;
+
+        // ${x/pat/sub} substitute ${x//pat/sub} global ${x/#pat/sub} begin
+        // ${x/%pat/sub} end ${x/pat} delete pat (x can be @ or *)
+        } else if (*slice=='/') {
+          struct sh_arg wild = {0};
+
+          s = slashcopy(ss = slice+(xx = !!strchr("/#%", slice[1]))+1, "/}",
+            &wild);
+          ss += (long)wild.v[wild.c];
+          ss = (*ss == '/') ? slashcopy(ss+1, "}", 0) : 0;
+          jj = ss ? strlen(ss) : 0;
+          ll = 0;
+          for (ll = 0; ifs[ll];) {
+            // TODO nocasematch option
+            if (0<(dd = wildcard_match(ifs+ll, s, &wild, 0))) {
+              char *bird = 0;
+
+              if (slice[1]=='%' && ifs[ll+dd]) {
+                ll++;
+                continue;
+              }
+              if (*delete && (*delete)->arg==ifs) {
+                if (jj==dd) memcpy(ifs+ll, ss, jj);
+                else if (jj<dd) sprintf(ifs+ll, "%s%s", ss, ifs+ll+dd);
+                else bird = ifs;
+              } else bird = (void *)1;
+              if (bird) {
+                ifs = xmprintf("%.*s%s%s", ll, ifs, ss ? : "", ifs+ll+dd);
+                if (bird != (void *)1) {
+                  free(bird);
+                  (*delete)->arg = ifs;
+                } else push_arg(delete, ifs);
+              }
+              if (slice[1]!='/') break;
+            } else ll++;
+            if (slice[1]=='#') break;
+          }
+
+// ${x@QEPAa} Q=$'blah' E=blah without the $'' wrap, P=expand as $PS1
+//   A=declare that recreates var a=attribute flags
+//   x can be @*
+//      } else if (*slice=='@') {
 
 // TODO test x can be @ or *
         } else {
@@ -1377,15 +1502,6 @@ barf:
           ifs = slice;
           goto barf;
         }
-
-// ${x%y} ${x%%y} suffix
-// ${x/pat/sub} substitute ${x//pat/sub} global ${x/#pat/sub} begin
-// ${x/%pat/sub} end ${x/pat} delete pat
-//   x can be @ or *
-// ${x^pat} ${x^^pat} uppercase/g ${x,} ${x,,} lowercase/g (no pat = ?)
-// ${x@QEPAa} Q=$'blah' E=blah without the $'' wrap, P=expand as $PS1
-//   A=declare that recreates var a=attribute flags
-//   x can be @*
 
 // TODO: $((a=42)) can change var, affect lifetime
 // must replace ifs AND any previous output arg[] within pointer strlen()
@@ -1624,8 +1740,7 @@ static int expand_arg(struct sh_arg *arg, char *old, unsigned flags,
     }
 
     // Save result, aborting on expand error
-    push_arg(delete, ss);
-    if (expand_arg_nobrace(arg, ss, flags, delete, 0)) {
+    if (expand_arg_nobrace(arg, push_arg(delete, ss), flags, delete, 0)) {
       llist_traverse(blist, free);
 
       return 1;
@@ -1913,6 +2028,7 @@ static void shexec(char *cmd, char **argv)
 {
   xsetenv(xmprintf("_=%s", cmd), 0);
   execve(cmd, argv, environ);
+// TODO: why?
   if (errno == ENOEXEC) run_subshell("source \"$_\"", 11);
 }
 
@@ -2793,8 +2909,7 @@ dprintf(2, "TODO skipped init for((;;)), need math parser\n");
             if ((err = expand_arg_nobrace(&arg, *vv++, NO_SPLIT, &blk->fdelete,
               &arg2))) break;
             s = arg.c ? *arg.v : "";
-            match = wildcard_match(blk->fvar, strlen(blk->fvar), s, strlen(s),
-              &arg2, 0);
+            match = wildcard_match(blk->fvar, s, &arg2, 0);
             if (match>=0 && !s[match]) break;
             else if (**vv++ == ')') {
               vv = 0;
@@ -2859,10 +2974,12 @@ dprintf(2, "TODO skipped running for((;;)), need math parser\n");
     }
 
     // for && and || skip pipeline segment(s) based on return code
-    if (!pl->type || pl->type == 3)
-      while (ctl && !strcmp(ctl, toys.exitval ? "&&" : "||"))
-        ctl = (pl = pl->type ? pl->end : pl->next) ? pl->arg->v[pl->arg->c] : 0;
-
+    if (!pl->type || pl->type == 3) {
+      while (ctl && !strcmp(ctl, toys.exitval ? "&&" : "||")) {
+        if ((pl = pl->next)->type) pl = pl->end;
+        ctl = pl->arg->v[pl->arg->c];
+      }
+    }
     pl = pl->next;
   }
 
@@ -3055,9 +3172,24 @@ static void subshell_setup(void)
   xexit();
 }
 
+FILE *fpathopen(char *name)
+{
+  struct string_list *sl = 0;
+  FILE *f = fopen(name, "r");
+  char *pp = getvar("PATH") ? : _PATH_DEFPATH;
+
+  if (!f) {
+    for (sl = find_in_path(pp, *toys.optargs); sl; free(llist_pop(&sl)))
+      if ((f = fopen(sl->str, "r"))) break;
+    if (sl) llist_traverse(sl, free);
+  }
+
+  return f;
+}
+
 void sh_main(void)
 {
-  char *new, *cc = TT.sh.c;
+  char *new, *cc = 0;
   struct sh_function scratch;
   int prompt = 0;
   struct string_list *sl = 0;
@@ -3084,10 +3216,13 @@ void sh_main(void)
   // if (!FLAG(noprofile)) { }
 
   // Is this an interactive shell?
-  if (FLAG(s) || (!FLAG(c) && !toys.optc)) TT.options |= OPT_S;
-  if (FLAG(i) || (!FLAG(c) && (TT.options&OPT_S) && isatty(0)))
-    TT.options |= OPT_I;
-  if (FLAG(c)) TT.options |= OPT_C;
+  if (toys.stacktop) {
+    cc = TT.sh.c;
+    if (FLAG(s) || (!FLAG(c) && !toys.optc)) TT.options |= OPT_S;
+    if (FLAG(i) || (!FLAG(c) && (TT.options&OPT_S) && isatty(0)))
+      TT.options |= OPT_I;
+    if (FLAG(c)) TT.options |= OPT_C;
+  }
 
   // Read environment for exports from parent shell. Note, calls run_sh()
   // which blanks argument sections of TT and this, so parse everything
@@ -3106,14 +3241,7 @@ void sh_main(void)
 // TODO unify fmemopen() here with sh_run
   if (cc) f = fmemopen(cc, strlen(cc), "r");
   else if (TT.options&OPT_S) f = stdin;
-  else if (!(f = fopen(*toys.optargs, "r"))) {
-    char *pp = getvar("PATH") ? : _PATH_DEFPATH;
-
-    for (sl = find_in_path(pp, *toys.optargs); sl; free(llist_pop(&sl)))
-      if ((f = fopen(sl->str, "r"))) break;
-    if (sl) llist_traverse(sl->next, free);
-    else perror_exit_raw(*toys.optargs);
-  }
+  else if (!(f = fpathopen(*toys.optargs))) perror_exit_raw(*toys.optargs);
 
   // Loop prompting and reading lines
   for (;;) {
@@ -3407,6 +3535,47 @@ void shift_main(void)
 
   if (toys.optc) by = atolx(*toys.optargs);
   by += TT.shift;
-  if (by<0 || by>= TT.arg->c) toys.exitval++;
+  if (by<0 || by>=TT.arg->c) toys.exitval++;
   else TT.shift = by;
+}
+
+void source_main(void)
+{
+  struct sh_function scratch;
+  FILE *ff = fpathopen(*toys.optargs);
+  long lineno = TT.lineno, shift = TT.shift, prompt;
+  struct sh_arg arg, *old = TT.arg;
+  char *new;
+
+  if (!ff) return perror_msg_raw(*toys.optargs);
+
+  arg.c = toys.optc;
+  arg.v = toys.optargs;
+  TT.arg = &arg;
+  memset(&scratch, 0, sizeof(scratch));
+
+  // TODO: factor out and combine with sh_main() plumbing?
+  for (TT.lineno = TT.shift = 0;;) {
+    new = xgetline(ff, 0);
+    if (!TT.lineno++ && new && *new == 0x7f) {
+      error_msg("'%s' is ELF", *toys.optargs);
+      free(new);
+
+      break;
+    }
+    if (1!=(prompt = parse_line(new ? : " ", &scratch))) {
+      if (!prompt) run_function(scratch.pipeline);
+      free_function(&scratch);
+      if (!new) {
+        if (prompt) syntax_err("unexpected end of file");
+
+        break;
+      }
+    }
+    free(new);
+  }
+  fclose(ff);
+  TT.lineno = lineno;
+  TT.shift = shift;
+  TT.arg = old;
 }
