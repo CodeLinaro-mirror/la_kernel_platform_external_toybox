@@ -7,7 +7,7 @@ struct log_data {
 // toys/example/demo_number.c
 
 struct demo_number_data {
-  long D;
+  long M, D;
 };
 
 // toys/example/hello.c
@@ -392,6 +392,13 @@ struct setfattr_data {
   char *x, *v, *n;
 };
 
+// toys/other/sha3sum.c
+
+struct sha3sum_data {
+  long a;
+  unsigned long long rc[24];
+};
+
 // toys/other/shred.c
 
 struct shred_data {
@@ -457,6 +464,14 @@ struct watch_data {
   int n;
 
   pid_t pid, oldpid;
+};
+
+// toys/other/watchdog.c
+
+struct watchdog_data {
+  long T, t;
+
+  int fd;
 };
 
 // toys/other/xxd.c
@@ -669,11 +684,9 @@ struct getty_data {
   char *host_str; 
   long timeout;
   
-  char *tty_name;  
-  int  speeds[20];
-  int  sc;              
+  char *tty_name, buff[128];
+  int speeds[20], sc;
   struct termios termios;
-  char buff[128];
 };
 
 // toys/pending/groupadd.c
@@ -806,14 +819,14 @@ struct readelf_data {
   char *x, *p;
 
   char *elf, *shstrtab, *f;
-  unsigned long long shoff, phoff, size;
+  unsigned long long shoff, phoff, size, shstrtabsz;
   int bits, endian, shnum, shentsize, phentsize;
 };
 
 // toys/pending/route.c
 
 struct route_data {
-  char *family;
+  char *A;
 };
 
 // toys/pending/sh.c
@@ -828,19 +841,20 @@ struct sh_data {
     } exec;
   };
 
-  // keep lineno here, we use it to work around a compiler limitation
+  // keep lineno here: used to work around compiler limitation in run_command()
   long lineno;
-  char *ifs, *isexec;
+  char *ifs, *isexec, *wcpat;
   unsigned options, jobcnt;
   int hfd, pid, bangpid, varslen, shift, cdcount;
   long long SECONDS;
 
+  // global and local variables
   struct sh_vars {
     long flags;
     char *str;
   } *vars;
 
-  // Parsed function
+  // Parsed functions
   struct sh_function {
     char *name;
     struct sh_pipeline {  // pipeline segments
@@ -864,13 +878,14 @@ struct sh_data {
     struct sh_arg *raw, arg;
   } *pp; // currently running process
 
-  struct sh_arg jobs, *arg;  // job list, command line args for $* etc
+  // job list, command line for $*, scratch space for do_wildcard_files()
+  struct sh_arg jobs, *arg, *wcdeck;
 };
 
 // toys/pending/stty.c
 
 struct stty_data {
-  char *device;
+  char *F;
 
   int fd, col;
   unsigned output_cols;
@@ -1140,7 +1155,7 @@ struct cp_data {
 // toys/posix/cpio.c
 
 struct cpio_data {
-  char *F, *p, *H;
+  char *F, *H;
 };
 
 // toys/posix/cut.c
@@ -1375,7 +1390,7 @@ struct ps_data {
   dev_t tty;
   void *fields, *kfields;
   long long ticks, bits, time;
-  int kcount, forcek, sortpos;
+  int kcount, forcek, sortpos, pidlen;
   int (*match_process)(long long *slot);
   void (*show_process)(void *tb);
 };
@@ -1444,7 +1459,7 @@ struct tail_data {
 struct tar_data {
   char *f, *C;
   struct arg_list *T, *X;
-  char *to_command, *owner, *group, *mtime, *mode;
+  char *I, *to_command, *owner, *group, *mtime, *mode;
   struct arg_list *exclude;
 
   struct double_list *incl, *excl, *seen;
@@ -1517,7 +1532,7 @@ struct xargs_data {
   long s, n, P;
   char *E;
 
-  long entries, bytes;
+  long entries, bytes, np;
   char delim;
   FILE *tty;
 };
@@ -1574,6 +1589,7 @@ extern union global_union {
 	struct oneit_data oneit;
 	struct rtcwake_data rtcwake;
 	struct setfattr_data setfattr;
+	struct sha3sum_data sha3sum;
 	struct shred_data shred;
 	struct stat_data stat;
 	struct swapon_data swapon;
@@ -1582,6 +1598,7 @@ extern union global_union {
 	struct timeout_data timeout;
 	struct truncate_data truncate;
 	struct watch_data watch;
+	struct watchdog_data watchdog;
 	struct xxd_data xxd;
 	struct arp_data arp;
 	struct arping_data arping;

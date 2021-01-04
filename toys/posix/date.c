@@ -7,7 +7,7 @@
  * Note: setting a 2 year date is 50 years back/forward from today,
  * not posix's hardwired magic dates.
 
-USE_DATE(NEWTOY(date, "d:D:r:u[!dr]", TOYFLAG_BIN))
+USE_DATE(NEWTOY(date, "d:D:r:u(utc)[!dr]", TOYFLAG_BIN))
 
 config DATE
   bool "date"
@@ -28,6 +28,9 @@ config DATE
     @UNIXTIME[.FRACTION]      seconds since midnight 1970-01-01
     YYYY-MM-DD [hh:mm[:ss]]   ISO 8601
     hh:mm[:ss]                24-hour time today
+
+    All input formats can be followed by fractional seconds, and/or a UTC
+    offset such as -0800.
 
     All input formats can be preceded by TZ="id" to set the input time zone
     separately from the output time zone. Otherwise $TZ sets both.

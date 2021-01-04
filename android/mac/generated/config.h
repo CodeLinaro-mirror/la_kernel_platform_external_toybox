@@ -410,8 +410,8 @@
 #define USE_NETSTAT(...)
 #define CFG_NICE 0
 #define USE_NICE(...)
-#define CFG_NL 0
-#define USE_NL(...)
+#define CFG_NL 1
+#define USE_NL(...) __VA_ARGS__
 #define CFG_NOHUP 0
 #define USE_NOHUP(...)
 #define CFG_NPROC 0
@@ -506,6 +506,8 @@
 #define USE_SHA224SUM(...)
 #define CFG_SHA256SUM 1
 #define USE_SHA256SUM(...) __VA_ARGS__
+#define CFG_SHA3SUM 0
+#define USE_SHA3SUM(...)
 #define CFG_SHA384SUM 0
 #define USE_SHA384SUM(...)
 #define CFG_SHA512SUM 1
@@ -628,6 +630,8 @@
 #define USE_VMSTAT(...)
 #define CFG_WATCH 0
 #define USE_WATCH(...)
+#define CFG_WATCHDOG 0
+#define USE_WATCHDOG(...)
 #define CFG_WC 1
 #define USE_WC(...) __VA_ARGS__
 #define CFG_WGET 0

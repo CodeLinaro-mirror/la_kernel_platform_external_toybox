@@ -518,6 +518,8 @@
 #define USE_SHA224SUM(...) __VA_ARGS__
 #define CFG_SHA256SUM 1
 #define USE_SHA256SUM(...) __VA_ARGS__
+#define CFG_SHA3SUM 0
+#define USE_SHA3SUM(...)
 #define CFG_SHA384SUM 1
 #define USE_SHA384SUM(...) __VA_ARGS__
 #define CFG_SHA512SUM 1
@@ -650,6 +652,8 @@
 #define USE_VMSTAT(...) __VA_ARGS__
 #define CFG_WATCH 1
 #define USE_WATCH(...) __VA_ARGS__
+#define CFG_WATCHDOG 0
+#define USE_WATCHDOG(...)
 #define CFG_WC 1
 #define USE_WC(...) __VA_ARGS__
 #define CFG_WGET 0

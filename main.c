@@ -21,7 +21,7 @@ struct toy_list toy_list[] = {
 
 struct toy_context toys;
 union global_union this;
-char toybuf[4096], libbuf[4096];
+char *toybox_version = TOYBOX_VERSION, toybuf[4096], libbuf[4096];
 
 struct toy_list *toy_find(char *name)
 {
@@ -64,7 +64,7 @@ static void unknown(char *name)
 {
   toys.exitval = 127;
   toys.which = toy_list;
-  error_exit("Unknown command %s", name);
+  help_exit("Unknown command %s", name);
 }
 
 // Setup toybox global state for this command.
@@ -84,7 +84,7 @@ void toy_singleinit(struct toy_list *which, char *argv[])
     }
 
     if (!strcmp(argv[1], "--version")) {
-      xputs("toybox "TOYBOX_VERSION);
+      xprintf("toybox %s\n", toybox_version);
       xexit();
     }
   }
@@ -178,6 +178,7 @@ void toybox_main(void)
 {
   char *toy_paths[] = {"usr/", "bin/", "sbin/", 0}, *s = toys.argv[1];
   int i, len = 0;
+  unsigned width = 80;
 
   // fast path: try to exec immediately.
   // (Leave toys.which null to disable suid return logic.)
@@ -193,9 +194,10 @@ void toybox_main(void)
   // For early error reporting
   toys.which = toy_list;
 
-  if (toys.argv[1] && toys.argv[1][0] != '-') unknown(toys.argv[1]);
+  if (toys.argv[1] && strcmp(toys.argv[1], "--long")) unknown(toys.argv[1]);
 
-  // Output list of command.
+  // Output list of commands.
+  terminal_size(&width, 0);
   for (i = 1; i<ARRAY_LEN(toy_list); i++) {
     int fl = toy_list[i].flags;
     if (fl & TOYMASK_LOCATION) {
@@ -205,7 +207,7 @@ void toybox_main(void)
           if (fl & (1<<j)) len += printf("%s", toy_paths[j]);
       }
       len += printf("%s",toy_list[i].name);
-      if (++len > 65) len = 0;
+      if (++len > width-15) len = 0;
       xputc(len ? ' ' : '\n');
     }
   }
