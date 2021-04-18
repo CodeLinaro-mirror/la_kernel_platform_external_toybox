@@ -15,8 +15,8 @@
 // options shared between mv/cp must be in same order (right to left)
 // for FLAG macros to work out right in shared infrastructure.
 
-USE_CP(NEWTOY(cp, "<2(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fit:T[-HLPd][-ni]", TOYFLAG_BIN))
-USE_MV(NEWTOY(mv, "<2vnF(remove-destination)fit:T[-ni]", TOYFLAG_BIN))
+USE_CP(NEWTOY(cp, "<1(preserve):;D(parents)RHLPprdaslvnF(remove-destination)fit:T[-HLPd][-ni]", TOYFLAG_BIN))
+USE_MV(NEWTOY(mv, "<1vnF(remove-destination)fit:T[-ni]", TOYFLAG_BIN))
 USE_INSTALL(NEWTOY(install, "<1cdDpsvt:m:o:g:", TOYFLAG_USR|TOYFLAG_BIN))
 
 config CP
@@ -364,15 +364,23 @@ void cp_main(void)
 {
   char *tt = *toys.which->name == 'i' ? TT.i.t : TT.c.t,
     *destname = tt ? : toys.optargs[--toys.optc];
-  int i, destdir = !stat(destname, &TT.top) && S_ISDIR(TT.top.st_mode);
+  int i, destdir = !stat(destname, &TT.top);
+
+  if (!toys.optc) error_exit("Needs 2 arguments");
+  if (!destdir && errno==ENOENT && FLAG(D)) {
+    if (tt && mkpathat(AT_FDCWD, tt, 0777, MKPATHAT_MAKE|MKPATHAT_MKLAST))
+      perror_exit("-t '%s'", tt);
+    destdir = 1;
+  } else {
+    destdir = destdir && S_ISDIR(TT.top.st_mode);
+    if (!destdir && (toys.optc>1 || FLAG(D) || tt))
+      error_exit("'%s' not directory", destname);
+  }
 
   if (FLAG(T)) {
     if (toys.optc>1) help_exit("Max 2 arguments");
     if (destdir) error_exit("'%s' is a directory", destname);
   }
-
-  if ((toys.optc>1 || FLAG(D) || tt) && !destdir)
-    error_exit("'%s' not directory", destname);
 
   if (FLAG(a)||FLAG(p)) TT.pflags = _CP_mode|_CP_ownership|_CP_timestamps;
 
@@ -404,11 +412,11 @@ void cp_main(void)
 
   // Loop through sources
   for (i=0; i<toys.optc; i++) {
-    char *src = toys.optargs[i], *trail = src;
-    int rc = 1;
+    char *src = toys.optargs[i], *trail;
+    int send = 1;
 
-    while (*++trail);
-    if (*--trail == '/') *trail = 0;
+    if (!(trail = strrchr(src, '/')) || trail[1]) trail = 0;
+    else while (trail>src && *trail=='/') *trail-- = 0;
 
     if (destdir) {
       char *s = FLAG(D) ? src : getbasename(src);
@@ -425,6 +433,7 @@ void cp_main(void)
       }
     } else TT.destname = destname;
 
+    // "mv across devices" triggers cp fallback path, so set that as default
     errno = EXDEV;
     if (CFG_MV && toys.which->name[0] == 'm') {
       int force = FLAG(f), no_clobber = FLAG(n);
@@ -438,18 +447,18 @@ void cp_main(void)
         // _else_) but I don't care.
         if (exists && (FLAG(i) || (!(st.st_mode & 0222) && isatty(0)))) {
           fprintf(stderr, "%s: overwrite '%s'", toys.which->name, TT.destname);
-          if (!yesno(0)) rc = 0;
+          if (!yesno(0)) send = 0;
           else unlink(TT.destname);
         }
         // if -n and dest exists, don't try to rename() or copy
-        if (exists && no_clobber) rc = 0;
+        if (exists && no_clobber) send = 0;
       }
-      if (rc) rc = rename(src, TT.destname);
-      if (errno && !*trail) *trail = '/';
+      if (send) send = rename(src, TT.destname);
+      if (trail) trail[1] = '/';
     }
 
-    // Copy if we didn't mv, skipping nonexistent sources
-    if (rc) {
+    // Copy if we didn't mv or hit an error, skipping nonexistent sources
+    if (send) {
       if (errno!=EXDEV || dirtree_flagread(src, DIRTREE_SHUTUP+
         DIRTREE_SYMFOLLOW*!!(FLAG(H)||FLAG(L)), TT.callback))
           perror_msg("bad '%s'", src);
@@ -511,13 +520,12 @@ void install_main(void)
     return;
   }
 
-  if (FLAG(D)) {
+  if (FLAG(D) && !FLAG(t)) {
     TT.destname = toys.optargs[toys.optc-1];
     if (mkpathat(AT_FDCWD, TT.destname, 0, MKPATHAT_MAKE))
       perror_exit("-D '%s'", TT.destname);
     if (toys.optc == 1) return;
   }
-  if (toys.optc < 2) error_exit("needs 2 args");
 
   // Translate flags from install to cp
   toys.optflags = cp_flag_F() + cp_flag_v()*!!FLAG(v)

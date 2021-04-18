@@ -4,7 +4,7 @@
  *
  * See http://opengroup.org/onlinepubs/9699919799/utilities/df.html
 
-USE_DF(NEWTOY(df, "HPkhit*a[-HPkh]", TOYFLAG_SBIN))
+USE_DF(NEWTOY(df, "HPkhit*a[-HPh]", TOYFLAG_SBIN))
 
 config DF
   bool "df"
@@ -63,7 +63,8 @@ static void print_header()
                       sizeof(char *)*4);
   else {
     if (!(FLAG(H)||FLAG(h))) {
-      dsuapm[1] = TT.units == 512 ? "512-blocks" : "1K-blocks";
+      dsuapm[1] = TT.units == 512 ? "512-blocks" :
+        FLAG(P) ? "1024-blocks" : "1K-blocks";
       dsuapm[3] = "Available";
       if (FLAG(P)) dsuapm[4] = "Capacity";
     }
@@ -102,7 +103,7 @@ static void show_mt(struct mtab_list *mt, int measuring)
       suap[1] = mt->statvfs.f_files - mt->statvfs.f_ffree;
       suap[2] = getuid() ? mt->statvfs.f_favail : mt->statvfs.f_ffree;
     } else {
-      block = maxof(mt->statvfs.f_bsize, 1);
+      block = maxof(mt->statvfs.f_frsize, 1);
       suap[0] = mt->statvfs.f_blocks;
       suap[1] = mt->statvfs.f_blocks - mt->statvfs.f_bfree;
       suap[2] = getuid() ? mt->statvfs.f_bavail : mt->statvfs.f_bfree;
@@ -142,7 +143,7 @@ void df_main(void)
 
   // Units are 512 bytes if you select "pedantic" without "kilobytes".
   if (FLAG(H)||FLAG(h)||FLAG(i)) TT.units = 1;
-  else TT.units = FLAG(P) ? 512 : 1024;
+  else TT.units = FLAG(P) && !FLAG(k) ? 512 : 1024;
 
   if (!(mtstart = xgetmountlist(0))) return;
   mtend = dlist_terminate(mtstart);
@@ -160,11 +161,11 @@ void df_main(void)
         } else {
           // Find and display this filesystem.  Use _last_ hit in case of
           // overmounts (which is first hit in the reversed list).
-          for (mt = mtend; mt; mt = mt->prev)
-            if (st.st_dev == mt->stat.st_dev
-                || (st.st_rdev && (st.st_rdev == mt->stat.st_dev)))
-              break;
-          show_mt(mt, measuring);
+          for (mt = mtend, mt2 = 0; mt; mt = mt->prev) {
+            if (!mt2 && st.st_dev == mt->stat.st_dev) mt2 = mt;
+            if (st.st_rdev && (st.st_rdev == mt->stat.st_dev)) break;
+          }
+          show_mt(mt ? : mt2, measuring);
         }
       }
       if (!measuring--) break;
