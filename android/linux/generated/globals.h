@@ -316,10 +316,9 @@ struct losetup_data {
 // toys/other/lsattr.c
 
 struct lsattr_data {
-  long v;
-  long p;
+  long v, p;
 
-  long add, rm, set;
+  unsigned add, rm, set;
   // !add and !rm tell us whether they were used, but `chattr =` is meaningful.
   int have_set;
 };
@@ -397,6 +396,12 @@ struct readelf_data {
   int bits, endian, shnum, shentsize, phentsize;
 };
 
+// toys/other/reboot.c
+
+struct reboot_data {
+  char *d;
+};
+
 // toys/other/rtcwake.c
 
 struct rtcwake_data {
@@ -463,8 +468,9 @@ struct timeout_data {
 
   int nextsig;
   pid_t pid;
-  struct timeval ktv;
-  struct itimerval itv;
+  struct timespec kts;
+  struct itimerspec its;
+  timer_t timer;
 };
 
 // toys/other/truncate.c
@@ -505,7 +511,7 @@ struct arp_data {
     char *af_type_A;
     char *af_type_p;
     char *interface;
-    
+
     int sockfd;
     char *device;
 };
@@ -539,7 +545,7 @@ struct bc_data {
 // toys/pending/bootchartd.c
 
 struct bootchartd_data {
-  char buf[32];
+  char timestamp[32];
   long msec;
   int proc_accounting;
 
@@ -914,6 +920,20 @@ struct sh_data {
   struct sh_arg jobs, *wcdeck;
 };
 
+// toys/pending/strace.c
+
+struct strace_data {
+  long s;
+  long p;
+
+  // 216 for x86-64.
+  char regs_buf[256];
+  pid_t pid;
+  char *fmt;
+  char ioctl[32];
+  int arg;
+};
+
 // toys/pending/stty.c
 
 struct stty_data {
@@ -1238,7 +1258,6 @@ struct expand_data {
 
 struct file_data {
   int max_name_len;
-
   off_t len;
 };
 
@@ -1496,7 +1515,7 @@ struct tar_data {
   struct double_list *incl, *excl, *seen;
   struct string_list *dirs;
   char *cwd;
-  int fd, ouid, ggid, hlc, warn, adev, aino, sparselen;
+  int fd, ouid, ggid, hlc, warn, adev, aino, sparselen, pid;
   long long *sparse;
   time_t mtt;
 
@@ -1621,6 +1640,7 @@ extern union global_union {
 	struct oneit_data oneit;
 	struct pwgen_data pwgen;
 	struct readelf_data readelf;
+	struct reboot_data reboot;
 	struct rtcwake_data rtcwake;
 	struct setfattr_data setfattr;
 	struct sha3sum_data sha3sum;
@@ -1670,6 +1690,7 @@ extern union global_union {
 	struct openvt_data openvt;
 	struct route_data route;
 	struct sh_data sh;
+	struct strace_data strace;
 	struct stty_data stty;
 	struct sulogin_data sulogin;
 	struct syslogd_data syslogd;
