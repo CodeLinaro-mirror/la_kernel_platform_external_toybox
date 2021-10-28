@@ -322,6 +322,8 @@
 #define USE_LAST(...)
 #define CFG_LINK 0
 #define USE_LINK(...)
+#define CFG_LINUX32 0
+#define USE_LINUX32(...)
 #define CFG_LN 1
 #define USE_LN(...) __VA_ARGS__
 #define CFG_LOAD_POLICY 1
@@ -554,6 +556,8 @@
 #define USE_SPLIT(...) __VA_ARGS__
 #define CFG_STAT 1
 #define USE_STAT(...) __VA_ARGS__
+#define CFG_STRACE 0
+#define USE_STRACE(...)
 #define CFG_STRINGS 1
 #define USE_STRINGS(...) __VA_ARGS__
 #define CFG_STTY 1
