@@ -178,7 +178,8 @@ int mkpathat(int atfd, char *dir, mode_t lastmode, int flags)
   // test for. Might as well do it up front.
 
   if (!fstatat(atfd, dir, &buf, 0)) {
-    if ((flags&MKPATHAT_MKLAST) && !S_ISDIR(buf.st_mode)) {
+    // Note that mkdir should return EEXIST for already existed directory/file.
+    if (!(flags&MKPATHAT_MAKE) || ((flags&MKPATHAT_MKLAST) && !S_ISDIR(buf.st_mode))) {
       errno = EEXIST;
       return 1;
     } else return 0;
@@ -1164,9 +1165,10 @@ void names_to_pid(char **names, int (*callback)(pid_t pid, char *name),
       if (scripts && !strcmp(bb, getbasename(cmd+strlen(cmd)+1))) goto match;
       continue;
 match:
-      if (callback(u, *cur)) break;
+      if (callback(u, *cur)) goto done;
     }
   }
+done:
   closedir(dp);
 }
 
