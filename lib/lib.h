@@ -3,11 +3,6 @@
  * Copyright 2006 Rob Landley <rob@landley.net>
  */
 
-struct ptr_len {
-  void *ptr;
-  long len;
-};
-
 // llist.c
 
 // All these list types can be handled by the same code because first element
@@ -356,6 +351,8 @@ int pollinate(int in1, int in2, int out1, int out2, int timeout, int shutdown_ti
 char *ntop(struct sockaddr *sa);
 void xsendto(int sockfd, void *buf, size_t len, struct sockaddr *dest);
 int xrecvwait(int fd, char *buf, int len, union socksaddr *sa, int timeout);
+char *escape_url(char *str, char *and);
+void unescape_url(char *str);
 
 // password.c
 int get_salt(char *salt, char * algo);
@@ -373,6 +370,8 @@ int comma_remove(char *optlist, char *opt);
 
 long long gzip_fd(int infd, int outfd);
 long long gunzip_fd(int infd, int outfd);
+long long gunzip_fd_preload(int infd, int outfd, char *buf, unsigned len);
+
 
 // getmountlist.c
 struct mtab_list {
