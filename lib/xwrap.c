@@ -339,7 +339,7 @@ pid_t xpopen_both(char **argv, int *pipes)
 // Wait for child process to exit, then return adjusted exit code.
 int xwaitpid(pid_t pid)
 {
-  int status;
+  int status = 127<<8;
 
   while (-1 == waitpid(pid, &status, 0) && errno == EINTR) errno = 0;
 
@@ -382,15 +382,15 @@ int xrun(char **argv)
   return xpclose_both(xpopen_both(argv, 0), 0);
 }
 
-// Run child, writing "stdin", returning stdout or NULL, pass through stderr
-char *xrunread(char *argv[], char *stdin)
+// Run child, writing to_stdin, returning stdout or NULL, pass through stderr
+char *xrunread(char *argv[], char *to_stdin)
 {
   char *result = 0;
   int pipe[] = {-1, -1}, total = 0, len;
   pid_t pid;
 
   pid = xpopen_both(argv, pipe);
-  if (stdin && *stdin) writeall(*pipe, stdin, strlen(stdin));
+  if (to_stdin && *to_stdin) writeall(*pipe, to_stdin, strlen(to_stdin));
   close(*pipe);
   for (;;) {
     if (0>=(len = readall(pipe[1], libbuf, sizeof(libbuf)))) break;
