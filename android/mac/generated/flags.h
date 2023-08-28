@@ -1447,9 +1447,9 @@
 #undef FLAG_fast
 #endif
 
-// i2cdetect   >3aFlqry[!qr]
+// i2cdetect   >3aF#<0>63lqry[!qr][!Fl]
 #undef OPTSTR_i2cdetect
-#define OPTSTR_i2cdetect ">3aFlqry[!qr]"
+#define OPTSTR_i2cdetect ">3aF#<0>63lqry[!qr][!Fl]"
 #ifdef CLEANUP_i2cdetect
 #undef CLEANUP_i2cdetect
 #undef FOR_i2cdetect
@@ -1489,6 +1489,17 @@
 #undef FOR_i2cset
 #undef FLAG_y
 #undef FLAG_f
+#endif
+
+// i2ctransfer   <2vfy
+#undef OPTSTR_i2ctransfer
+#define OPTSTR_i2ctransfer "<2vfy"
+#ifdef CLEANUP_i2ctransfer
+#undef CLEANUP_i2ctransfer
+#undef FOR_i2ctransfer
+#undef FLAG_y
+#undef FLAG_f
+#undef FLAG_v
 #endif
 
 // iconv   cst:f:
@@ -2364,9 +2375,9 @@
 #undef FLAG_d
 #endif
 
-// patch >2(no-backup-if-mismatch)(dry-run)F#g#fulp#d:i:Rs(quiet) >2(no-backup-if-mismatch)(dry-run)xF#g#fulp#d:i:Rs(quiet)
+// patch >2(no-backup-if-mismatch)(dry-run)F#g#fulp#v(verbose)@d:i:Rs(quiet)[!sv] >2(no-backup-if-mismatch)(dry-run)F#g#fulp#v(verbose)@d:i:Rs(quiet)[!sv]
 #undef OPTSTR_patch
-#define OPTSTR_patch ">2(no-backup-if-mismatch)(dry-run)F#g#fulp#d:i:Rs(quiet)"
+#define OPTSTR_patch ">2(no-backup-if-mismatch)(dry-run)F#g#fulp#v(verbose)@d:i:Rs(quiet)[!sv]"
 #ifdef CLEANUP_patch
 #undef CLEANUP_patch
 #undef FOR_patch
@@ -2374,13 +2385,13 @@
 #undef FLAG_R
 #undef FLAG_i
 #undef FLAG_d
+#undef FLAG_v
 #undef FLAG_p
 #undef FLAG_l
 #undef FLAG_u
 #undef FLAG_f
 #undef FLAG_g
 #undef FLAG_F
-#undef FLAG_x
 #undef FLAG_dry_run
 #undef FLAG_no_backup_if_mismatch
 #endif
@@ -5231,6 +5242,16 @@
 #define FLAG_f (FORCED_FLAG<<1)
 #endif
 
+#ifdef FOR_i2ctransfer
+#define CLEANUP_i2ctransfer
+#ifndef TT
+#define TT this.i2ctransfer
+#endif
+#define FLAG_y (FORCED_FLAG<<0)
+#define FLAG_f (FORCED_FLAG<<1)
+#define FLAG_v (FORCED_FLAG<<2)
+#endif
+
 #ifdef FOR_iconv
 #define CLEANUP_iconv
 #ifndef TT
@@ -6042,13 +6063,13 @@
 #define FLAG_R (1LL<<1)
 #define FLAG_i (1LL<<2)
 #define FLAG_d (1LL<<3)
-#define FLAG_p (1LL<<4)
-#define FLAG_l (1LL<<5)
-#define FLAG_u (1LL<<6)
-#define FLAG_f (1LL<<7)
-#define FLAG_g (1LL<<8)
-#define FLAG_F (1LL<<9)
-#define FLAG_x (FORCED_FLAG<<10)
+#define FLAG_v (1LL<<4)
+#define FLAG_p (1LL<<5)
+#define FLAG_l (1LL<<6)
+#define FLAG_u (1LL<<7)
+#define FLAG_f (1LL<<8)
+#define FLAG_g (1LL<<9)
+#define FLAG_F (1LL<<10)
 #define FLAG_dry_run (1LL<<11)
 #define FLAG_no_backup_if_mismatch (1LL<<12)
 #endif

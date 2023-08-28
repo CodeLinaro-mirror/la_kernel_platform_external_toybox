@@ -322,6 +322,12 @@ struct hwclock_data {
   char *f;
 };
 
+// toys/other/i2ctools.c
+
+struct i2ctools_data {
+  long F;
+};
+
 // toys/other/ionice.c
 
 struct ionice_data {
@@ -414,7 +420,7 @@ struct nbd_client_data {
 // toys/other/nsenter.c
 
 struct nsenter_data {
-  char *UupnmiC[6];
+  char *UupnmiC[7];
   long t;
 };
 
@@ -1469,7 +1475,7 @@ struct paste_data {
 
 struct patch_data {
   char *i, *d;
-  long p, g, F;
+  long v, p, g, F;
 
   void *current_hunk;
   long oldline, oldlen, newline, newlen, linenum, outnum;
@@ -1704,6 +1710,7 @@ extern union global_union {
 	struct gpiod_data gpiod;
 	struct hexedit_data hexedit;
 	struct hwclock_data hwclock;
+	struct i2ctools_data i2ctools;
 	struct ionice_data ionice;
 	struct login_data login;
 	struct losetup_data losetup;
