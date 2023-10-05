@@ -74,7 +74,7 @@
 
 #define HELP_passwd_sad "Password changes are checked to make sure they're at least 6 chars long,\ndon't include the entire username (but not a subset of it), or the entire\nprevious password (but changing password1, password2, password3 is fine).\nThis heuristic accepts \"aaaaaa\" and \"123456\"."
 
-#define HELP_passwd "usage: passwd [-a ALGO] [-dlu] [USER]\n\nUpdate user's authentication tokens. Defaults to current user.\n\n-a ALGO	Encryption method (des, md5, sha256, sha512) default: des\n-d		Set password to ''\n-l		Lock (disable) account\n-u		Unlock (enable) account"
+#define HELP_passwd "usage: passwd [-a ALGO] [-dlu] [USER]\n\nUpdate user's login password. Defaults to current user.\n\n-a ALGO	Encryption method (des, md5, sha256, sha512) default: md5\n-d		Set password to ''\n-l		Lock (disable) account\n-u		Unlock (enable) account"
 
 #define HELP_mount "usage: mount [-afFrsvw] [-t TYPE] [-o OPTION,] [[DEVICE] DIR]\n\nMount new filesystem(s) on directories. With no arguments, display existing\nmounts.\n\n-a	Mount all entries in /etc/fstab (with -t, only entries of that TYPE)\n-O	Only mount -a entries that have this option\n-f	Fake it (don't actually mount)\n-r	Read only (same as -o ro)\n-w	Read/write (default, same as -o rw)\n-t	Specify filesystem type\n-v	Verbose\n\nOPTIONS is a comma separated list of options, which can also be supplied\nas --longopts.\n\nAutodetects loopback mounts (a file on a directory) and bind mounts (file\non file, directory on directory), so you don't need to say --bind or --loop.\nYou can also \"mount -a /path\" to mount everything in /etc/fstab under /path,\neven if it's noauto. DEVICE starting with UUID= is identified by blkid -U."
 
@@ -162,6 +162,8 @@
 
 #define HELP_uclampset "usage: uclampset [-m MIN] [-M MAX] {-p PID | COMMAND...}\n\nSet or query process utilization limits ranging from 0 to 1024, or -1 to\nreset to system default. With no arguments, prints current values.\n\n-m MIN      Reserve at least this much CPU utilization for task\n-M MAX      Limit task to at most this much CPU utilization\n-p PID	Apply to PID rather than new COMMAND\n-R	Reset child processes to default values on fork\n-a	Apply to all threads for the given PID"
 
+#define HELP_ts "usage: ts [-is] [FORMAT]\n\nAdd timestamps to each line in pipeline. Default format without options\n\"%b %d %H:%M:%S\", with -i or -s \"%H:%M:%S\".\n\n-i	Incremental (since previous line)\n-m	Add milliseconds\n-s	Since start"
+
 #define HELP_truncate "usage: truncate [-c] -s SIZE file...\n\nSet length of file(s), extending sparsely if necessary.\n\n-c	Don't create file if it doesn't exist\n-s	New size (with optional prefix and suffix)\n\nSIZE prefix: + add, - subtract, < shrink to, > expand to,\n             / multiple rounding down, % multiple rounding up\nSIZE suffix: k=1024, m=1024^2, g=1024^3, t=1024^4, p=1024^5, e=1024^6"
 
 #define HELP_timeout "usage: timeout [-i] [-k DURATION] [-s SIGNAL] DURATION COMMAND...\n\nRun command line as a child process, sending child a signal if the\ncommand doesn't exit soon enough.\n\nDURATION can be a decimal fraction. An optional suffix can be \"m\"\n(minutes), \"h\" (hours), \"d\" (days), or \"s\" (seconds, the default).\n\n-i	Only kill for inactivity (restart timeout when command produces output)\n-k	Send KILL signal if child still running this long after first signal\n-s	Send specified signal (default TERM)\n-v	Verbose\n--foreground       Don't create new process group\n--preserve-status  Exit with the child's exit status"
@@ -244,7 +246,7 @@
 
 #define HELP_mkswap "usage: mkswap [-L LABEL] DEVICE\n\nSet up a Linux swap area on a device or file."
 
-#define HELP_mkpasswd "usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]\n\nCrypt PASSWORD using crypt(3)\n\n-P FD	Read password from file descriptor FD\n-m TYPE	Encryption method (des, md5, sha256, or sha512; default is des)\n-S SALT"
+#define HELP_mkpasswd "usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]\n\nEncrypt PASSWORD using crypt(3), with either random or provided SALT.\n\n-P FD	Read password from file descriptor FD\n-m TYPE	Encryption method (des, md5, sha256, or sha512; default is des)"
 
 #define HELP_mix "usage: mix [-d DEV] [-c CHANNEL] [-l VOL] [-r RIGHT]\n\nList OSS sound channels (module snd-mixer-oss), or set volume(s).\n\n-c CHANNEL	Set/show volume of CHANNEL (default first channel found)\n-d DEV		Device node (default /dev/mixer)\n-l VOL		Volume level\n-r RIGHT	Volume of right stereo channel (with -r, -l sets left volume)"
 
@@ -364,6 +366,8 @@
 
 #define HELP_useradd "usage: useradd [-SDH] [-h DIR] [-s SHELL] [-G GRP] [-g NAME] [-u UID] USER [GROUP]\n\nCreate new user, or add USER to GROUP\n\n-D       Don't assign a password\n-g NAME  Real name\n-G GRP   Add user to existing group\n-h DIR   Home directory\n-H       Don't create home directory\n-s SHELL Login shell\n-S       Create a system user\n-u UID   User id"
 
+#define HELP_tsort "usage: tsort [FILE]\n\nTopological sort: read pairs of input strings indicating before/after\nrelationships. Output sorted result if no cycles, or first cycle to stderr."
+
 #define HELP_traceroute "usage: traceroute [-46FUIldnvr] [-f 1ST_TTL] [-m MAXTTL] [-p PORT] [-q PROBES]\n[-s SRC_IP] [-t TOS] [-w WAIT_SEC] [-g GATEWAY] [-i IFACE] [-z PAUSE_MSEC] HOST [BYTES]\n\ntraceroute6 [-dnrv] [-m MAXTTL] [-p PORT] [-q PROBES][-s SRC_IP] [-t TOS] [-w WAIT_SEC]\n  [-i IFACE] HOST [BYTES]\n\nTrace the route to HOST\n\n-4,-6 Force IP or IPv6 name resolution\n-F    Set the don't fragment bit (supports IPV4 only)\n-U    Use UDP datagrams instead of ICMP ECHO (supports IPV4 only)\n-I    Use ICMP ECHO instead of UDP datagrams (supports IPV4 only)\n-l    Display the TTL value of the returned packet (supports IPV4 only)\n-d    Set SO_DEBUG options to socket\n-n    Print numeric addresses\n-v    verbose\n-r    Bypass routing tables, send directly to HOST\n-m    Max time-to-live (max number of hops)(RANGE 1 to 255)\n-p    Base UDP port number used in probes(default 33434)(RANGE 1 to 65535)\n-q    Number of probes per TTL (default 3)(RANGE 1 to 255)\n-s    IP address to use as the source address\n-t    Type-of-service in probe packets (default 0)(RANGE 0 to 255)\n-w    Time in seconds to wait for a response (default 3)(RANGE 0 to 86400)\n-g    Loose source route gateway (8 max) (supports IPV4 only)\n-z    Pause Time in ms (default 0)(RANGE 0 to 86400) (supports IPV4 only)\n-f    Start from the 1ST_TTL hop (instead from 1)(RANGE 1 to 255) (supports IPV4 only)\n-i    Specify a network interface to operate with"
 
 #define HELP_tr "usage: tr [-cds] SET1 [SET2]\n\nTranslate, squeeze, or delete characters from stdin, writing to stdout\n\n-c/-C  Take complement of SET1\n-d     Delete input characters coded SET1\n-s     Squeeze multiple output characters of SET2 into one character"
@@ -456,7 +460,7 @@
 
 #define HELP_groupdel "usage: groupdel [USER] GROUP\n\nDelete a group or remove a user from a group"
 
-#define HELP_groupadd "usage: groupadd [-S] [-g GID] [USER] GROUP\n\nAdd a group or add a user to a group\n\n  -g GID Group id\n  -S     Create a system group"
+#define HELP_groupadd "usage: groupadd [-S] [-g GID] [USER] GROUP\n\nAdd a user to a group, or create a new group.\n\n-g GID	Group id\n-R	Operate within chroot\n-S	Create a system group"
 
 #define HELP_gitcheckout "usage: gitcheckout <branch>\nA minimal git checkout."
 
@@ -494,11 +498,13 @@
 
 #define HELP_dhcp "usage: dhcp [-fbnqvoCRB] [-i IFACE] [-r IP] [-s PROG] [-p PIDFILE]\n            [-H HOSTNAME] [-V VENDOR] [-x OPT:VAL] [-O OPT]\n\n     Configure network dynamically using DHCP.\n\n   -i Interface to use (default eth0)\n   -p Create pidfile\n   -s Run PROG at DHCP events (default /usr/share/dhcp/default.script)\n   -B Request broadcast replies\n   -t Send up to N discover packets\n   -T Pause between packets (default 3 seconds)\n   -A Wait N seconds after failure (default 20)\n   -f Run in foreground\n   -b Background if lease is not obtained\n   -n Exit if lease is not obtained\n   -q Exit after obtaining lease\n   -R Release IP on exit\n   -S Log to syslog too\n   -a Use arping to validate offered address\n   -O Request option OPT from server (cumulative)\n   -o Don't request any options (unless -O is given)\n   -r Request this IP address\n   -x OPT:VAL  Include option OPT in sent packets (cumulative)\n   -F Ask server to update DNS mapping for NAME\n   -H Send NAME as client hostname (default none)\n   -V VENDOR Vendor identifier (default 'toybox VERSION')\n   -C Don't send MAC as client identifier\n   -v Verbose\n\n   Signals:\n   USR1  Renew current lease\n   USR2  Release current lease"
 
+#define HELP_csplit "usage: csplit [-ks] [-f PREFIX] [-n INTEGER] file arg...\n\nSplit files into multiple files based on list of rules\n\n-k Does not delete Files on error\n-s No file output size messages\n-f [PREFIX] Use [PREFIX] as filename prefix instead of \"xx\"\n-n [INTEGER] Make all filename numbers [INTEGER] characters long\n\nValid Rules:\n/regexp/[INTEGER] Break file before line that regexp matches,\n%regexp%[INTEGER]\nIf a offset is specified for these rules, the break will happen [INTEGER]\nlines after the regexp match\nif a offset is specified, it will break at [INTEGER] lines after the offset\n[INTEGER] Break file at line before [INTEGER]\n{INTEGER} Repeat Previous Pattern INTEGER Number of times if INTEGER is *\nThe pattern repeats forever"
+
 #define HELP_crontab "usage: crontab [-u user] FILE\n               [-u user] [-e | -l | -r]\n               [-c dir]\n\nFiles used to schedule the execution of programs.\n\n-c crontab dir\n-e edit user's crontab\n-l list user's crontab\n-r delete user's crontab\n-u user\nFILE Replace crontab by FILE ('-': stdin)"
 
 #define HELP_crond "usage: crond [-fbS] [-l N] [-d N] [-L LOGFILE] [-c DIR]\n\nA daemon to execute scheduled commands.\n\n-b Background (default)\n-c crontab dir\n-d Set log level, log to stderr\n-f Foreground\n-l Set log level. 0 is the most verbose, default 8\n-S Log to syslog (default)\n-L Log to file"
 
-#define HELP_chsh "usage: chsh [-s SHELL] [USER]\n\nChange user's login shell.\n\n-s	Use SHELL instead of prompting\n\nNon-root users can only change their own shell to one listed in /etc/shells."
+#define HELP_chsh "usage: chsh [-s SHELL] [-R CHROOT_DIR] [USER]\n\nChange user's login shell.\n\n-s	Use SHELL instead of prompting\n-R	Act on CHROOT_DIR instead of host\n\nNon-root users can only change their own shell to one listed in /etc/shells."
 
 #define HELP_brctl "usage: brctl COMMAND [BRIDGE [INTERFACE]]\n\nManage ethernet bridges\n\nCommands:\nshow                  Show a list of bridges\naddbr BRIDGE          Create BRIDGE\ndelbr BRIDGE          Delete BRIDGE\naddif BRIDGE IFACE    Add IFACE to BRIDGE\ndelif BRIDGE IFACE    Delete IFACE from BRIDGE\nsetageing BRIDGE TIME Set ageing time\nsetfd BRIDGE TIME     Set bridge forward delay\nsethello BRIDGE TIME  Set hello time\nsetmaxage BRIDGE TIME Set max message age\nsetpathcost BRIDGE PORT COST   Set path cost\nsetportprio BRIDGE PORT PRIO   Set port priority\nsetbridgeprio BRIDGE PRIO      Set bridge priority\nstp BRIDGE [1/yes/on|0/no/off] STP on/off"
 
