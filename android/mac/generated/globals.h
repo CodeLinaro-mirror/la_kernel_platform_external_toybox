@@ -74,16 +74,6 @@ struct killall_data {
 
 struct md5sum_data {
   int sawline;
-  unsigned *rconsttable32;
-  unsigned long long *rconsttable64; // for sha384,sha512
-
-  // Crypto variables blanked after summing
-  unsigned long long count, overflow;
-  union {
-    char c[128]; // bytes, 1024 bits
-    unsigned i32[16]; // 512 bits for md5,sha1,sha224,sha256
-    unsigned long long i64[16]; // 1024 bits for sha384,sha512
-  } state, buffer;
 };
 
 // toys/lsb/mknod.c
@@ -132,8 +122,7 @@ struct seq_data {
 // toys/lsb/su.c
 
 struct su_data {
-  char *s;
-  char *c;
+  char *s, *c;
 };
 
 // toys/lsb/umount.c
@@ -228,13 +217,6 @@ struct wget_data {
   struct ssl_ctx_st *ctx;
   struct ssl_st *ssl;
 #endif
-};
-
-// toys/other/acpi.c
-
-struct acpi_data {
-  int ac, bat, therm, cool;
-  char *cpath;
 };
 
 // toys/other/base64.c
@@ -555,7 +537,7 @@ struct timeout_data {
 struct truncate_data {
   char *s;
 
-  long size;
+  long long size;
   int type;
 };
 
@@ -711,8 +693,8 @@ struct dhcp6_data {
 // toys/pending/dhcpd.c
 
 struct dhcpd_data {
-    char *iface;
-    long port;
+  char *i;
+  long p;
 };
 
 // toys/pending/diff.c
@@ -1703,7 +1685,6 @@ extern union global_union {
 	struct sntp_data sntp;
 	struct tunctl_data tunctl;
 	struct wget_data wget;
-	struct acpi_data acpi;
 	struct base64_data base64;
 	struct blkdiscard_data blkdiscard;
 	struct blkid_data blkid;

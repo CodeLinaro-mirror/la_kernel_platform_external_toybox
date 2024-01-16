@@ -799,7 +799,7 @@ static void unpack_tar(char *first)
 
     // At this point, we have something to output. Convert metadata.
     TT.hdr.mode = OTOI(tar.mode)&0xfff;
-    if (tar.type == 'S' || !tar.type) TT.hdr.mode |= 0x8000;
+    if (tar.type == 'S' || !tar.type || !*tar.magic) TT.hdr.mode |= 0x8000;
     else TT.hdr.mode |= (char []){8,8,10,2,6,4,1,8}[tar.type-'0']<<12;
     TT.hdr.uid = OTOI(tar.uid);
     TT.hdr.gid = OTOI(tar.gid);
@@ -1063,7 +1063,7 @@ void tar_main(void)
         // detect gzip and bzip signatures
         if (SWAP_BE16(*(short *)hdr)==0x1f8b) toys.optflags |= FLAG_z;
         else if (!smemcmp(hdr, "BZh", 3)) toys.optflags |= FLAG_j;
-        else if (peek_be(hdr, 7) == 0xfd377a585a0000UL) toys.optflags |= FLAG_J;
+        else if (peek_be(hdr, 7) == 0xfd377a585a0000ULL) toys.optflags |= FLAG_J;
         else error_exit("Not tar");
 
         // if we can seek back we don't need to loop and copy data
