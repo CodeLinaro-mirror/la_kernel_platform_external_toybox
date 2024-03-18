@@ -7,7 +7,7 @@
 USE_UNAME(NEWTOY(uname, "paomvrns", TOYFLAG_BIN))
 USE_ARCH(NEWTOY(arch, 0, TOYFLAG_USR|TOYFLAG_BIN))
 
-config ARCH 
+config ARCH
   bool "arch"
   default y
   help
@@ -19,17 +19,18 @@ config UNAME
   bool "uname"
   default y
   help
-    usage: uname [-asnrvm]
+    usage: uname [-asnrvmo]
 
     Print system information.
 
     -s	System name
     -n	Network (domain) name
     -r	Kernel Release number
-    -v	Kernel Version 
+    -v	Kernel Version
     -m	Machine (hardware) name
-    -o	Userspace type
     -a	All of the above (in order)
+
+    -o	Userspace type
 */
 
 #define FOR_uname

@@ -12,7 +12,7 @@ config WATCH
   bool "watch"
   default y
   help
-    usage: watch [-teb] [-n SEC] PROG ARGS
+    usage: watch [-tebx] [-n SEC] PROG ARGS
 
     Run PROG every -n seconds, showing output. Hit q to quit.
 
@@ -106,8 +106,8 @@ void watch_main(void)
         // Get and measure time string, trimming gratuitous \n
         ctimelen = strlen(ss = ctime(&t));
         if (ss[ctimelen-1]=='\n') ss[--ctimelen] = 0;
- 
-        // print cmdline, then * or ' ' (showing truncation), then ctime 
+
+        // print cmdline, then * or ' ' (showing truncation), then ctime
         pad = width-++ctimelen;
         if (pad>0) draw_trim(cmd, -pad, pad);
         printf("%c", pad<cmdlen ? '*' : ' ');

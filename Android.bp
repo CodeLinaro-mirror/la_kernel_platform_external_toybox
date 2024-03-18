@@ -187,6 +187,7 @@ device_srcs = [
     "toys/other/lsmod.c",
     "toys/other/lsusb.c",
     "toys/other/makedevs.c",
+    "toys/other/memeater.c",
     "toys/other/mkswap.c",
     "toys/other/modinfo.c",
     "toys/other/mountpoint.c",
@@ -292,6 +293,7 @@ toybox_symlinks = [
     "fsync",
     "getconf",
     "getenforce",
+    "getfattr",
     "gpiodetect",
     "gpiofind",
     "gpioget",
@@ -332,6 +334,7 @@ toybox_symlinks = [
     "lspci",
     "lsusb",
     "md5sum",
+    "memeater",
     "mkdir",
     "mkfifo",
     "mknod",
@@ -376,6 +379,7 @@ toybox_symlinks = [
     "sendevent",
     "seq",
     "setenforce",
+    "setfattr",
     "setsid",
     "sha1sum",
     "sha224sum",
@@ -542,8 +546,12 @@ cc_binary {
     static_executable: true,
     compile_multilib: "both",
     multilib: {
-        lib32: { suffix: "32", },
-        lib64: { suffix: "64", },
+        lib32: {
+            suffix: "32",
+        },
+        lib64: {
+            suffix: "64",
+        },
     },
     stl: "libc++_static",
     static_libs: [
@@ -576,7 +584,7 @@ sh_test {
     test_suites: ["general-tests"],
     host_supported: true,
     device_supported: false,
-    require_root:true,
+    require_root: true,
     data: [
         "tests/**/*",
         "scripts/runtest.sh",

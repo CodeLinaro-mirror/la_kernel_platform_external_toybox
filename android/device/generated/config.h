@@ -28,8 +28,6 @@
 #define USE_TOYBOX_SMACK(...)
 #define CFG_TOYBOX_SUID 0
 #define USE_TOYBOX_SUID(...)
-#define CFG_TOYBOX_UID_SYS 100
-#define CFG_TOYBOX_UID_USR 500
 #define CFG_TOYBOX_ZHELP 0
 #define USE_TOYBOX_ZHELP(...)
 #define CFG_ACPI 1
@@ -362,6 +360,8 @@
 #define USE_MDEV_CONF(...)
 #define CFG_MDEV 0
 #define USE_MDEV(...)
+#define CFG_MEMEATER 1
+#define USE_MEMEATER(...) __VA_ARGS__
 #define CFG_MICROCOM 1
 #define USE_MICROCOM(...) __VA_ARGS__
 #define CFG_MIX 0

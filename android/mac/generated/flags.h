@@ -2012,6 +2012,15 @@
 #undef FLAG_s
 #endif
 
+// memeater   <1>1M
+#undef OPTSTR_memeater
+#define OPTSTR_memeater "<1>1M"
+#ifdef CLEANUP_memeater
+#undef CLEANUP_memeater
+#undef FOR_memeater
+#undef FLAG_M
+#endif
+
 // microcom <1>1s#=115200X <1>1s#=115200X
 #undef OPTSTR_microcom
 #define OPTSTR_microcom "<1>1s#=115200X"
@@ -2217,12 +2226,14 @@
 #undef FLAG_r
 #endif
 
-// netcat   ^tElLw#<1W#<1p#<1>65535q#<1s:f:46uUn[!tlL][!Lw][!Lu][!46U]
+// netcat   ^tElLw#<1W#<1p#<1>65535q#<1s:f:46uUnvz[!tlL][!Lw][!Lu][!46U]
 #undef OPTSTR_netcat
-#define OPTSTR_netcat "^tElLw#<1W#<1p#<1>65535q#<1s:f:46uUn[!tlL][!Lw][!Lu][!46U]"
+#define OPTSTR_netcat "^tElLw#<1W#<1p#<1>65535q#<1s:f:46uUnvz[!tlL][!Lw][!Lu][!46U]"
 #ifdef CLEANUP_netcat
 #undef CLEANUP_netcat
 #undef FOR_netcat
+#undef FLAG_z
+#undef FLAG_v
 #undef FLAG_n
 #undef FLAG_U
 #undef FLAG_u
@@ -2853,9 +2864,9 @@
 #undef FLAG_h
 #endif
 
-// setsid ^<1wcd[!dc] ^<1wcd[!dc]
+// setsid ^<1wc@d[!dc] ^<1wc@d[!dc]
 #undef OPTSTR_setsid
-#define OPTSTR_setsid "^<1wcd[!dc]"
+#define OPTSTR_setsid "^<1wc@d[!dc]"
 #ifdef CLEANUP_setsid
 #undef CLEANUP_setsid
 #undef FOR_setsid
@@ -3797,16 +3808,17 @@
 #undef FLAG_F
 #endif
 
-// wc mcwl mcwl
+// wc Lcmwl Lcmwl
 #undef OPTSTR_wc
-#define OPTSTR_wc "mcwl"
+#define OPTSTR_wc "Lcmwl"
 #ifdef CLEANUP_wc
 #undef CLEANUP_wc
 #undef FOR_wc
 #undef FLAG_l
 #undef FLAG_w
-#undef FLAG_c
 #undef FLAG_m
+#undef FLAG_c
+#undef FLAG_L
 #endif
 
 // wget   <1>1(max-redirect)#<0=20d(debug)O(output-document):p(post-data):
@@ -5757,6 +5769,14 @@
 #define FLAG_s (FORCED_FLAG<<0)
 #endif
 
+#ifdef FOR_memeater
+#define CLEANUP_memeater
+#ifndef TT
+#define TT this.memeater
+#endif
+#define FLAG_M (FORCED_FLAG<<0)
+#endif
+
 #ifdef FOR_microcom
 #define CLEANUP_microcom
 #ifndef TT
@@ -5950,21 +5970,23 @@
 #ifndef TT
 #define TT this.netcat
 #endif
-#define FLAG_n (FORCED_FLAG<<0)
-#define FLAG_U (FORCED_FLAG<<1)
-#define FLAG_u (FORCED_FLAG<<2)
-#define FLAG_6 (FORCED_FLAG<<3)
-#define FLAG_4 (FORCED_FLAG<<4)
-#define FLAG_f (FORCED_FLAG<<5)
-#define FLAG_s (FORCED_FLAG<<6)
-#define FLAG_q (FORCED_FLAG<<7)
-#define FLAG_p (FORCED_FLAG<<8)
-#define FLAG_W (FORCED_FLAG<<9)
-#define FLAG_w (FORCED_FLAG<<10)
-#define FLAG_L (FORCED_FLAG<<11)
-#define FLAG_l (FORCED_FLAG<<12)
-#define FLAG_E (FORCED_FLAG<<13)
-#define FLAG_t (FORCED_FLAG<<14)
+#define FLAG_z (FORCED_FLAG<<0)
+#define FLAG_v (FORCED_FLAG<<1)
+#define FLAG_n (FORCED_FLAG<<2)
+#define FLAG_U (FORCED_FLAG<<3)
+#define FLAG_u (FORCED_FLAG<<4)
+#define FLAG_6 (FORCED_FLAG<<5)
+#define FLAG_4 (FORCED_FLAG<<6)
+#define FLAG_f (FORCED_FLAG<<7)
+#define FLAG_s (FORCED_FLAG<<8)
+#define FLAG_q (FORCED_FLAG<<9)
+#define FLAG_p (FORCED_FLAG<<10)
+#define FLAG_W (FORCED_FLAG<<11)
+#define FLAG_w (FORCED_FLAG<<12)
+#define FLAG_L (FORCED_FLAG<<13)
+#define FLAG_l (FORCED_FLAG<<14)
+#define FLAG_E (FORCED_FLAG<<15)
+#define FLAG_t (FORCED_FLAG<<16)
 #endif
 
 #ifdef FOR_netstat
@@ -7411,8 +7433,9 @@
 #endif
 #define FLAG_l (1LL<<0)
 #define FLAG_w (1LL<<1)
-#define FLAG_c (1LL<<2)
-#define FLAG_m (1LL<<3)
+#define FLAG_m (1LL<<2)
+#define FLAG_c (1LL<<3)
+#define FLAG_L (1LL<<4)
 #endif
 
 #ifdef FOR_wget
