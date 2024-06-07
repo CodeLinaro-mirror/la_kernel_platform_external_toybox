@@ -53,7 +53,6 @@ USE_SH(NEWTOY(exit, 0, TOYFLAG_NOFORK))
 USE_SH(NEWTOY(export, "np", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(jobs, "lnprs", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(local, 0, TOYFLAG_NOFORK))
-USE_SH(NEWTOY(return, ">1", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(set, 0, TOYFLAG_NOFORK))
 USE_SH(NEWTOY(shift, ">1", TOYFLAG_NOFORK))
 USE_SH(NEWTOY(source, "<1", TOYFLAG_NOFORK))
@@ -264,15 +263,6 @@ config LOCAL
     Create a local variable that lasts until return from this function.
     With no arguments lists local variables in current function context.
     TODO: implement "declare" options.
-
-config RETURN
-  bool
-  default n
-  depends on SH
-  help
-    usage: return [#]
-
-    Return from function/source with specified value or last command's exit val.
 
 config SHIFT
   bool
@@ -1319,7 +1309,7 @@ static void call_function(void)
 
 static void free_function(struct sh_function *funky)
 {
-  if (!funky || --funky->refcount) return;
+  if (--funky->refcount) return;
 
   free(funky->name);
   llist_traverse(funky->pipeline, free_pipeline);
@@ -1328,7 +1318,7 @@ static void free_function(struct sh_function *funky)
 
 // TODO: old function-vs-source definition is "has variables", but no ff->func?
 // returns 0 if source popped, nonzero if function popped
-static int end_fcall(int funconly)
+static int end_function(int funconly)
 {
   struct sh_fcall *ff = TT.ff;
   int func = ff->next!=ff && ff->vars;
@@ -1336,7 +1326,7 @@ static int end_fcall(int funconly)
   if (!func && funconly) return 0;
   llist_traverse(ff->delete, llist_free_arg);
   ff->delete = 0;
-  while (ff->blk->next) pop_block();
+  while (TT.ff->blk->next) pop_block();
   pop_block();
 
   // for a function, free variables and pop context
@@ -1345,8 +1335,8 @@ static int end_fcall(int funconly)
     if (!(ff->vars[--ff->varslen].flags&VAR_NOFREE))
       free(ff->vars[ff->varslen].str);
   free(ff->vars);
-  free(ff->blk);
-  free_function(ff->func);
+  free(TT.ff->blk);
+  if (ff->func) free_function(ff->func);
   free(dlist_pop(&TT.ff));
 
   return 1;
@@ -2836,7 +2826,7 @@ static struct sh_process *run_command(void)
       TT.ff->delete = pp->delete;
       pp->delete = 0;
     }
-    addvar(0, TT.ff); // function context (not source) so end_fcall deletes
+    addvar(0, TT.ff); // function context (not source) so end_function deletes
     prefix = 1;  // create local variables for function prefix assignment
   }
 
@@ -2896,7 +2886,7 @@ static struct sh_process *run_command(void)
 
     // Is this command a builtin that should run in this process?
     if ((jj&TOYFLAG_NOFORK) || ((jj&TOYFLAG_MAYFORK) && !prefix)) {
-      sigjmp_buf rebound, *prebound = toys.rebound;
+      sigjmp_buf rebound;
       char temp[jj = offsetof(struct toy_context, rebound)];
 
       // This fakes lots of what toybox_main() does.
@@ -2914,7 +2904,7 @@ static struct sh_process *run_command(void)
         tl->toy_main();
         xexit();
       }
-      toys.rebound = prebound;
+      toys.rebound = 0;
       pp->exit = toys.exitval;
       clearerr(stdout);
       if (toys.optargs != toys.argv+1) free(toys.optargs);
@@ -2927,7 +2917,7 @@ static struct sh_process *run_command(void)
   // cleanup process
   unredirect(pp->urd);
   pp->urd = 0;
-  if (prefix && funk == TT.funcslen) end_fcall(0);
+  if (prefix && funk == TT.funcslen) end_function(0);
   if (s) setvarval("_", s);
 
   return pp;
@@ -3669,7 +3659,7 @@ static void run_lines(void)
   // iterate through pipeline segments
   for (;;) {
     if (!TT.ff->pl) {
-      if (!end_fcall(1)) break;
+      if (!end_function(1)) break;
       goto advance;
     }
 
@@ -4037,7 +4027,7 @@ advance:
   }
 
   // exit source context (and function calls on syntax err)
-  while (end_fcall(0));
+  while (end_function(0));
 }
 
 // set variable
@@ -4736,27 +4726,6 @@ void local_main(void)
   }
 }
 
-void return_main(void)
-{
-  struct sh_fcall *ff;
-  char *ss;
-
-  if (*toys.optargs) {
-    toys.exitval = estrtol(*toys.optargs, &ss, 0);
-    if (errno || *ss) error_msg("NaN");
-  }
-
-  // Do we have a non-transparent function context in the call stack?
-  for (ff = TT.ff; !ff->func; ff = ff->next)
-    if (ff == TT.ff->prev) return error_msg("not function or source");
-
-  // Pop all blocks to start of function
-  for (ff = TT.ff;; ff = ff->next) {
-    while (TT.ff->blk->next) TT.ff->pl = pop_block();
-    if (ff->func) break;
-  }
-}
-
 void shift_main(void)
 {
   long long by = 1;
@@ -4778,14 +4747,12 @@ void source_main(void)
   *toys.optargs = *toys.argv;
   ++TT.srclvl;
   call_function();
-  TT.ff->func = (void *)1;
   TT.ff->arg.v = toys.optargs;
   TT.ff->arg.c = toys.optc;
   TT.ff->oldlineno = TT.LINENO;
   TT.LINENO = 0;
   do_source(name, ff);
   TT.LINENO = TT.ff->oldlineno;
-  // TODO: this doesn't do proper cleanup but isn't normal fcall either
   free(dlist_pop(&TT.ff));
   --TT.srclvl;
 }
