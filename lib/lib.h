@@ -359,7 +359,9 @@ void xconnect(int fd, const struct sockaddr *sa, socklen_t len);
 int xconnectany(struct addrinfo *ai);
 int xbindany(struct addrinfo *ai);
 int xpoll(struct pollfd *fds, int nfds, int timeout);
-int pollinate(int in1, int in2, int out1, int out2, int timeout, int shutdown_timeout);
+int pollinate(int in1, int in2, int out1, int out2,
+              void (*callback)(int fd, void *buf, size_t len),
+              int timeout, int shutdown_timeout);
 char *ntop(struct sockaddr *sa);
 void xsendto(int sockfd, void *buf, size_t len, struct sockaddr *dest);
 int xrecvwait(int fd, char *buf, int len, union socksaddr *sa, int timeout);
@@ -408,8 +410,8 @@ void exit_signal(int signal);
 void sigatexit(void *handler);
 void list_signals(void);
 
-mode_t string_to_mode(char *mode_str, mode_t base);
-void mode_to_string(mode_t mode, char *buf);
+unsigned string_to_mode(char *mode_str, unsigned base);
+void mode_to_string(unsigned mode, char *buf);
 char *getbasename(char *name);
 char *fileunderdir(char *file, char *dir);
 void *mepcpy(void *from, void *to, unsigned long len);
