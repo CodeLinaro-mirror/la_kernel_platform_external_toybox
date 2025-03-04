@@ -2446,9 +2446,9 @@
 #undef FLAG_no_backup_if_mismatch
 #endif
 
-// pgrep   acld:u*U*t*s*P*g*G*fnovxL:[-no]
+// pgrep   ?cld:u*U*t*s*P*g*G*fnovxL:[-no]
 #undef OPTSTR_pgrep
-#define OPTSTR_pgrep "acld:u*U*t*s*P*g*G*fnovxL:[-no]"
+#define OPTSTR_pgrep "?cld:u*U*t*s*P*g*G*fnovxL:[-no]"
 #ifdef CLEANUP_pgrep
 #undef CLEANUP_pgrep
 #undef FOR_pgrep
@@ -2468,7 +2468,6 @@
 #undef FLAG_d
 #undef FLAG_l
 #undef FLAG_c
-#undef FLAG_a
 #endif
 
 // pidof   so:x
@@ -3500,16 +3499,6 @@
 #undef FLAG_z
 #undef FLAG_f
 #undef FLAG_i
-#endif
-
-// trap   lp
-#undef OPTSTR_trap
-#define OPTSTR_trap "lp"
-#ifdef CLEANUP_trap
-#undef CLEANUP_trap
-#undef FOR_trap
-#undef FLAG_p
-#undef FLAG_l
 #endif
 
 // true    
@@ -6234,7 +6223,6 @@
 #define FLAG_d (FORCED_FLAG<<13)
 #define FLAG_l (FORCED_FLAG<<14)
 #define FLAG_c (FORCED_FLAG<<15)
-#define FLAG_a (FORCED_FLAG<<16)
 #endif
 
 #ifdef FOR_pidof
@@ -7189,15 +7177,6 @@
 #define FLAG_z (FORCED_FLAG<<17)
 #define FLAG_f (FORCED_FLAG<<18)
 #define FLAG_i (FORCED_FLAG<<19)
-#endif
-
-#ifdef FOR_trap
-#define CLEANUP_trap
-#ifndef TT
-#define TT this.trap
-#endif
-#define FLAG_p (FORCED_FLAG<<0)
-#define FLAG_l (FORCED_FLAG<<1)
 #endif
 
 #ifdef FOR_true

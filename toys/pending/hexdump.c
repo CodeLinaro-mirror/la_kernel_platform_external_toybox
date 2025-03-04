@@ -28,7 +28,7 @@ config HEXDUMP
 
 config HD
   bool "hd"
-  default n
+  default HEXDUMP
   help
     usage: hd [FILE...]
 
@@ -151,5 +151,5 @@ void hexdump_main(void)
   else TT.fmt = " %04x";
 
   loopfiles(toys.optargs, do_hexdump);
-  printf("%0*llx\n", 7+FLAG(C), TT.pos);
+  FLAG(C) ? printf("%08llx\n", TT.pos) : printf("%07llx\n", TT.pos);
 }
