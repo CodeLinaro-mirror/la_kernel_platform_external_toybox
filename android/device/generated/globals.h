@@ -1,7 +1,7 @@
 struct log_data {
-  char *t, *p;
+  char *t, *p, *b;
 
-  int pri;
+  int pri, buf;
 };
 
 struct dmesg_data {
@@ -301,6 +301,21 @@ struct xxd_data {
 
 struct brctl_data {
     int sockfd;
+};
+
+struct dhcp_data {
+    char *iface;
+    char *pidfile;
+    char *script;
+    long retries;
+    long timeout;
+    long tryagain;
+    struct arg_list *req_opt;
+    char *req_ip;
+    struct arg_list *pkt_opt;
+    char *fdn_name;
+    char *hostname;
+    char *vendor_cls;
 };
 
 struct diff_data {
@@ -861,6 +876,7 @@ extern union global_union {
 	struct watch_data watch;
 	struct xxd_data xxd;
 	struct brctl_data brctl;
+	struct dhcp_data dhcp;
 	struct diff_data diff;
 	struct expr_data expr;
 	struct getfattr_data getfattr;
