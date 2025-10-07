@@ -312,7 +312,8 @@ long long atolx(char *numstr)
   char *c = numstr, *suffixes="cwbkmgtpe", *end;
   long long val;
 
-  val = xstrtol(numstr, &c, 0);
+  // exclude octal to avoid confusion
+  val = xstrtol(numstr, &c, strstr(numstr, "0x") ? 0 : 10);
   if (c != numstr && *c && (end = strchr(suffixes, tolower(*c)))) {
     int shift = end-suffixes-2;
     ++c;
@@ -712,31 +713,6 @@ long long peek_be(void *ptr, unsigned size)
 long long peek(void *ptr, unsigned size)
 {
   return (IS_BIG_ENDIAN ? peek_be : peek_le)(ptr, size);
-}
-
-void poke_le(void *ptr, long long val, unsigned size)
-{
-  char *c = ptr;
-
-  while (size--) {
-    *c++ = val&255;
-    val >>= 8;
-  }
-}
-
-void poke_be(void *ptr, long long val, unsigned size)
-{
-  char *c = ptr + size;
-
-  while (size--) {
-    *--c = val&255;
-    val >>=8;
-  }
-}
-
-void poke(void *ptr, long long val, unsigned size)
-{
-  (IS_BIG_ENDIAN ? poke_be : poke_le)(ptr, val, size);
 }
 
 // Iterate through an array of files, opening each one and calling a function
