@@ -25,6 +25,7 @@
 #define HELP_sort ""
 #define HELP_strip ""
 #define HELP_tail ""
+#define HELP_tee ""
 #define HELP_tr ""
 #define HELP_uname ""
 #define HELP_wc ""

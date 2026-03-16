@@ -7,7 +7,7 @@ USE_SENDEVENT(NEWTOY(sendevent, "<4>4", TOYFLAG_USR|TOYFLAG_SBIN))
 config SENDEVENT
   bool "sendevent"
   default y
-  depends on IS_ANDROID
+  depends on TOYBOX_ON_ANDROID
   help
     usage: sendevent DEVICE TYPE CODE VALUE
 
